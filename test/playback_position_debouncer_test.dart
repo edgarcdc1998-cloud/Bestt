@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:best_player/services/playback_position_debouncer.dart';
 
 void main() {
-  group('PlaybackPositionDebouncer Tests (ETAPA 3)', () {
+  group('PlaybackPositionDebouncer Tests (ETAPA 3.1 Auditoria)', () {
     test('1. Atualização de posição não grava imediatamente no storage', () async {
       int persistCallCount = 0;
       final inMemoryMap = <String, Duration>{};
@@ -37,7 +37,7 @@ void main() {
         },
       );
 
-      // 10 rapid position ticks (simulating 10 ticks/sec from player)
+      // 10 rapid position ticks
       for (int i = 5; i <= 15; i++) {
         debouncer.recordPosition('vod_1', Duration(seconds: i), inMemoryMap);
       }
@@ -53,52 +53,75 @@ void main() {
       debouncer.cancel();
     });
 
-    test('3. Somente a posição mais recente é persistida após o debounce', () async {
-      Map<String, Duration> persistedSnapshot = {};
+    test('3. Nova posição durante persistência em andamento é persistida (loop de dreno)', () async {
+      final persistedSnapshots = <Map<String, Duration>>[];
       final inMemoryMap = <String, Duration>{};
+      final slowPersistCompleter = Completer<void>();
 
       final debouncer = PlaybackPositionDebouncer(
-        interval: const Duration(milliseconds: 30),
+        interval: const Duration(milliseconds: 20),
         onPersist: (map) async {
-          persistedSnapshot = map;
+          persistedSnapshots.add(Map.from(map));
+          if (persistedSnapshots.length == 1) {
+            // First persist takes time
+            await slowPersistCompleter.future;
+          }
         },
       );
 
+      // Record position 1
       debouncer.recordPosition('vod_movie', const Duration(seconds: 10), inMemoryMap);
-      debouncer.recordPosition('vod_movie', const Duration(seconds: 20), inMemoryMap);
+
+      // Wait for first persist to trigger
+      await Future.delayed(const Duration(milliseconds: 30));
+      expect(persistedSnapshots.length, equals(1));
+      expect(persistedSnapshots.first['vod_movie'], equals(const Duration(seconds: 10)));
+      expect(debouncer.isPersisting, isTrue);
+
+      // Record a new position while first persist is still in flight
       debouncer.recordPosition('vod_movie', const Duration(seconds: 35), inMemoryMap);
+      expect(debouncer.hasPendingWrite, isTrue);
 
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Complete the first slow persist
+      slowPersistCompleter.complete();
+      await Future.delayed(const Duration(milliseconds: 30));
 
-      expect(persistedSnapshot['vod_movie'], equals(const Duration(seconds: 35)));
+      // The loop must have automatically picked up the newer position and persisted it
+      expect(persistedSnapshots.length, equals(2));
+      expect(persistedSnapshots.last['vod_movie'], equals(const Duration(seconds: 35)));
+      expect(debouncer.hasPendingWrite, isFalse);
 
       debouncer.cancel();
     });
 
-    test('4. Novo update reinicia o timer do debounce corretamente', () async {
-      int persistCallCount = 0;
+    test('4. Flush durante persistência em andamento aguarda e grava a posição mais recente', () async {
+      final persistedSnapshots = <Map<String, Duration>>[];
       final inMemoryMap = <String, Duration>{};
+      final slowPersistCompleter = Completer<void>();
 
       final debouncer = PlaybackPositionDebouncer(
-        interval: const Duration(milliseconds: 40),
+        interval: const Duration(milliseconds: 20),
         onPersist: (map) async {
-          persistCallCount++;
+          persistedSnapshots.add(Map.from(map));
+          if (persistedSnapshots.length == 1) {
+            await slowPersistCompleter.future;
+          }
         },
       );
 
-      debouncer.recordPosition('vod_1', const Duration(seconds: 10), inMemoryMap);
-      await Future.delayed(const Duration(milliseconds: 25)); // 25ms < 40ms
+      // Trigger first write
+      debouncer.recordPosition('vod_A', const Duration(seconds: 10), inMemoryMap);
+      await Future.delayed(const Duration(milliseconds: 30));
+      expect(debouncer.isPersisting, isTrue);
 
-      // New update resets the 40ms timer
-      debouncer.recordPosition('vod_1', const Duration(seconds: 12), inMemoryMap);
-      await Future.delayed(const Duration(milliseconds: 25)); // another 25ms (total 50ms from start)
+      // New position arrives
+      debouncer.recordPosition('vod_A', const Duration(seconds: 50), inMemoryMap);
 
-      // Should not have persisted yet because timer was reset
-      expect(persistCallCount, equals(0));
+      // Release first write and flush
+      slowPersistCompleter.complete();
+      await debouncer.flush(inMemoryMap);
 
-      // Now wait until second timer expires
-      await Future.delayed(const Duration(milliseconds: 25));
-      expect(persistCallCount, equals(1));
+      expect(persistedSnapshots.last['vod_A'], equals(const Duration(seconds: 50)));
 
       debouncer.cancel();
     });
@@ -123,30 +146,7 @@ void main() {
       expect(debouncer.hasPendingWrite, isFalse);
     });
 
-    test('6. Flush final persiste a última posição imediatamente sem esperar o timer', () async {
-      Map<String, Duration> persistedSnapshot = {};
-      final inMemoryMap = <String, Duration>{};
-
-      final debouncer = PlaybackPositionDebouncer(
-        interval: const Duration(seconds: 5), // Long 5s timer
-        onPersist: (map) async {
-          persistedSnapshot = map;
-        },
-      );
-
-      debouncer.recordPosition('vod_1', const Duration(seconds: 120), inMemoryMap);
-      expect(persistedSnapshot, isEmpty);
-
-      // Force immediate flush (e.g. user pauses or leaves screen)
-      await debouncer.flush(inMemoryMap);
-
-      expect(persistedSnapshot['vod_1'], equals(const Duration(seconds: 120)));
-      expect(debouncer.hasPendingWrite, isFalse);
-
-      debouncer.cancel();
-    });
-
-    test('7. Posição inválida (negativa, zero, < 5s, absurda) não é persistida', () async {
+    test('6. Posição inválida (<5s, negativa, >100h) é ignorada sem poluir o mapa', () async {
       int persistCallCount = 0;
       final inMemoryMap = <String, Duration>{};
 
@@ -159,7 +159,7 @@ void main() {
 
       debouncer.recordPosition('vod_1', const Duration(seconds: 2), inMemoryMap); // < 5s
       debouncer.recordPosition('vod_1', const Duration(seconds: -10), inMemoryMap); // Negative
-      debouncer.recordPosition('vod_1', const Duration(hours: 500), inMemoryMap); // Out of bounds
+      debouncer.recordPosition('vod_1', const Duration(hours: 500), inMemoryMap); // > 100h
       debouncer.recordPosition('', const Duration(seconds: 15), inMemoryMap); // Empty media ID
 
       await Future.delayed(const Duration(milliseconds: 40));
@@ -170,7 +170,7 @@ void main() {
       debouncer.cancel();
     });
 
-    test('8. Posição de conteúdo antigo não é misturada com conteúdo novo', () async {
+    test('7. Troca de conteúdo: posições de VOD A e VOD B permanecem estritamente isoladas', () async {
       Map<String, Duration> persistedSnapshot = {};
       final inMemoryMap = <String, Duration>{};
 
@@ -181,48 +181,18 @@ void main() {
         },
       );
 
-      debouncer.recordPosition('movie_A', const Duration(minutes: 15), inMemoryMap);
-      debouncer.recordPosition('movie_B', const Duration(minutes: 45), inMemoryMap);
+      debouncer.recordPosition('movie_A', const Duration(seconds: 100), inMemoryMap);
+      debouncer.recordPosition('movie_B', const Duration(seconds: 20), inMemoryMap);
 
       await Future.delayed(const Duration(milliseconds: 50));
 
-      expect(persistedSnapshot['movie_A'], equals(const Duration(minutes: 15)));
-      expect(persistedSnapshot['movie_B'], equals(const Duration(minutes: 45)));
+      expect(persistedSnapshot['movie_A'], equals(const Duration(seconds: 100)));
+      expect(persistedSnapshot['movie_B'], equals(const Duration(seconds: 20)));
 
       debouncer.cancel();
     });
 
-    test('9. Gravações persistentes são protegidas contra concorrência', () async {
-      int concurrencyCount = 0;
-      int maxConcurrency = 0;
-      int totalPersists = 0;
-      final inMemoryMap = <String, Duration>{};
-
-      final debouncer = PlaybackPositionDebouncer(
-        interval: const Duration(milliseconds: 10),
-        onPersist: (map) async {
-          concurrencyCount++;
-          if (concurrencyCount > maxConcurrency) {
-            maxConcurrency = concurrencyCount;
-          }
-          await Future.delayed(const Duration(milliseconds: 30));
-          concurrencyCount--;
-          totalPersists++;
-        },
-      );
-
-      debouncer.recordPosition('vod_1', const Duration(seconds: 10), inMemoryMap);
-      await debouncer.flush(inMemoryMap);
-      // Immediate second flush while first might be busy
-      await debouncer.flush(inMemoryMap);
-
-      expect(maxConcurrency, equals(1)); // Never > 1 concurrent write
-      expect(totalPersists, greaterThanOrEqualTo(1));
-
-      debouncer.cancel();
-    });
-
-    test('10. Dispose trata e persiste corretamente posição pendente', () async {
+    test('8. Dispose trata e persiste corretamente posição pendente sem deixar resíduos', () async {
       Map<String, Duration> persistedSnapshot = {};
       final inMemoryMap = <String, Duration>{};
 

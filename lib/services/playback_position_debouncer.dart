@@ -9,7 +9,7 @@ class PlaybackPositionDebouncer {
 
   Timer? _debounceTimer;
   bool _hasPendingWrite = false;
-  bool _isPersisting = false;
+  Future<void>? _activePersistFuture;
   bool _isDisposed = false;
 
   PlaybackPositionDebouncer({
@@ -18,15 +18,16 @@ class PlaybackPositionDebouncer {
   });
 
   bool get hasPendingWrite => _hasPendingWrite;
-  bool get isPersisting => _isPersisting;
+  bool get isPersisting => _activePersistFuture != null;
   bool get isDisposed => _isDisposed;
 
   /// Validates if a playback position is structurally sound.
   static bool isValidPosition(Duration? position) {
     if (position == null) return false;
     if (position.isNegative) return false;
-    // Discard positions less than 5 seconds (start of video) or absurd values (> 100 hours)
+    // Preserves original project rule: discard positions < 5s
     if (position.inSeconds < 5) return false;
+    // Guard against corrupted / overflow values (> 100 hours)
     if (position.inHours > 100) return false;
     return true;
   }
@@ -49,36 +50,50 @@ class PlaybackPositionDebouncer {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(interval, () async {
       if (!_isDisposed && _hasPendingWrite) {
-        await _executePersist(inMemoryMap);
+        await _executePersistLoop(inMemoryMap);
       }
     });
   }
 
-  /// Forces immediate asynchronous persistence of any pending positions.
+  /// Forces immediate persistence of any pending positions.
+  /// If a persistence is currently in flight, awaits it and persists any new pending updates.
   Future<void> flush(Map<String, Duration> inMemoryMap) async {
     if (_isDisposed) return;
     _debounceTimer?.cancel();
     _debounceTimer = null;
 
-    if (_hasPendingWrite) {
-      await _executePersist(inMemoryMap);
+    if (_activePersistFuture != null) {
+      await _activePersistFuture;
+    }
+
+    if (_hasPendingWrite && !_isDisposed) {
+      await _executePersistLoop(inMemoryMap);
     }
   }
 
-  /// Internal persistence execution with concurrency guard.
-  Future<void> _executePersist(Map<String, Duration> inMemoryMap) async {
-    if (_isPersisting || _isDisposed) return;
-    _isPersisting = true;
+  /// Concurrency-safe execution loop: continuously drains pending writes until clean.
+  Future<void> _executePersistLoop(Map<String, Duration> inMemoryMap) async {
+    if (_activePersistFuture != null) {
+      // Already running, the existing loop will pick up _hasPendingWrite
+      return;
+    }
+
+    final completer = Completer<void>();
+    _activePersistFuture = completer.future;
 
     try {
-      // Capture a snapshot of current in-memory positions
-      final snapshot = Map<String, Duration>.from(inMemoryMap);
-      _hasPendingWrite = false;
-      await onPersist(snapshot);
+      while (_hasPendingWrite && !_isDisposed) {
+        _hasPendingWrite = false;
+        final snapshot = Map<String, Duration>.from(inMemoryMap);
+        await onPersist(snapshot);
+      }
     } catch (e, stack) {
       debugPrint('[PlaybackPositionDebouncer] Error persisting playback positions: $e\n$stack');
     } finally {
-      _isPersisting = false;
+      _activePersistFuture = null;
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
     }
   }
 
@@ -89,12 +104,16 @@ class PlaybackPositionDebouncer {
     _hasPendingWrite = false;
   }
 
-  /// Disposes the debouncer safely.
+  /// Disposes the debouncer safely and flushes any pending write.
   Future<void> dispose(Map<String, Duration> inMemoryMap) async {
     if (_isDisposed) return;
     _isDisposed = true;
     _debounceTimer?.cancel();
     _debounceTimer = null;
+
+    if (_activePersistFuture != null) {
+      await _activePersistFuture;
+    }
 
     if (_hasPendingWrite) {
       try {
