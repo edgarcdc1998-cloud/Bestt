@@ -5,6 +5,7 @@ import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/media_item.dart';
 import '../repositories/library_repository.dart';
+import '../services/player_connection_manager.dart';
 import 'player/widgets/player_overlay.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -22,30 +23,30 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
+  late final PlayerConnectionManager _connectionManager;
   VlcPlayerController? _controller;
   bool _isDisposed = false;
   bool _isOverlayVisible = true;
   bool _isPlaying = false;
   bool _isBuffering = true;
-  bool _hasError = false;
-  String _errorMessage = '';
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   String _aspectRatio = '16:9';
 
   Timer? _hideTimer;
-  Timer? _reconnectTimer;
-  Timer? _bufferTimer;
-
-  int _retryCount = 0;
-  static const int _maxRetries = 3;
 
   @override
   void initState() {
     super.initState();
     _isDisposed = false;
+    _connectionManager = PlayerConnectionManager(
+      maxRetries: 3,
+      baseBackoff: const Duration(seconds: 2),
+    );
+    _connectionManager.addListener(_onConnectionStatusChanged);
+
     _enableImmersiveMode();
-    _initPlayer();
+    _connectStream();
   }
 
   Future<void> _enableImmersiveMode() async {
@@ -76,23 +77,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  void _cancelAllTimers() {
-    _hideTimer?.cancel();
-    _hideTimer = null;
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
-    _bufferTimer?.cancel();
-    _bufferTimer = null;
+  void _onConnectionStatusChanged() {
+    if (_isDisposed || !mounted) return;
+    _safeSetState(() {});
   }
 
-  Future<void> _initPlayer() async {
+  Future<void> _connectStream() async {
     if (_isDisposed) return;
 
-    _cancelAllTimers();
+    await _connectionManager.connect((generation) async {
+      await _teardownCurrentController();
 
-    final resumePos = widget.libraryRepository.getResumePosition(widget.media.id);
+      if (_isDisposed || generation != _connectionManager.currentGeneration) return;
 
-    try {
+      final resumePos = widget.libraryRepository.getResumePosition(widget.media.id);
+
       final controller = VlcPlayerController.network(
         widget.media.streamUrl,
         hwAcc: HwAcc.full,
@@ -111,7 +110,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ),
       );
 
-      if (_isDisposed) {
+      if (_isDisposed || generation != _connectionManager.currentGeneration) {
         try {
           await controller.dispose();
         } catch (_) {}
@@ -123,14 +122,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       _safeSetState(() {
         _isBuffering = true;
-        _hasError = false;
-        _errorMessage = '';
       });
 
       // Resume playback position for movies/series
       if (resumePos != null && !widget.media.isLive && resumePos.inSeconds > 0) {
         Future.delayed(const Duration(milliseconds: 1200), () {
-          if (!_isDisposed && _controller != null && _controller!.value.isInitialized) {
+          if (!_isDisposed &&
+              _controller != null &&
+              _controller!.value.isInitialized &&
+              generation == _connectionManager.currentGeneration) {
             try {
               _controller!.seekTo(resumePos);
             } catch (e) {
@@ -141,14 +141,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       _startHideTimer();
-      _startBufferTimeoutMonitor();
-
-      // Record to history
       widget.libraryRepository.addToHistory(widget.media);
-    } catch (e) {
-      debugPrint('[PlayerScreen] Error creating VlcPlayerController: $e');
-      _handlePlaybackError('Falha ao inicializar player: $e');
-    }
+    });
   }
 
   void _onPlayerStateChanged() {
@@ -157,7 +151,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final val = _controller!.value;
 
     if (val.hasError) {
-      _handlePlaybackError(val.errorDescription.isNotEmpty ? val.errorDescription : 'Erro de reprodução');
+      final desc = val.errorDescription.isNotEmpty ? val.errorDescription : 'Erro na reprodução do fluxo';
+      _connectionManager.onStreamError(desc);
       return;
     }
 
@@ -166,11 +161,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final pos = val.position;
     final dur = val.duration;
 
-    if (isPlaying && _hasError) {
-      _hasError = false;
-      _errorMessage = '';
-      _retryCount = 0;
+    if (isPlaying) {
+      _connectionManager.onStreamConnected();
     }
+
+    _connectionManager.onBufferingState(isBuffering);
 
     // Save resume position periodically for VOD
     if (!widget.media.isLive && pos.inSeconds > 5 && isPlaying) {
@@ -185,50 +180,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-  void _startBufferTimeoutMonitor() {
-    _bufferTimer?.cancel();
-    _bufferTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_isDisposed || !mounted || _controller == null) {
-        timer.cancel();
-        return;
-      }
-
-      if (_isBuffering && !_isPlaying) {
-        // If buffering too long on live stream, handle timeout
-        // (P1 backoff logic will be refined in Etapa 2, P0 ensures safe lifecycle)
-      }
-    });
-  }
-
-  void _handlePlaybackError(String message) {
-    if (_isDisposed || !mounted) return;
-
-    _safeSetState(() {
-      _hasError = true;
-      _errorMessage = message;
-      _isBuffering = false;
-      _isPlaying = false;
-    });
-
-    if (_retryCount < _maxRetries) {
-      _retryCount++;
-      _reconnectTimer?.cancel();
-      _reconnectTimer = Timer(Duration(seconds: 2 * _retryCount), () {
-        if (!_isDisposed && mounted) {
-          _retryPlayback();
-        }
-      });
-    }
-  }
-
-  Future<void> _retryPlayback() async {
-    if (_isDisposed) return;
-    await _teardownCurrentController();
-    await _initPlayer();
-  }
-
   Future<void> _teardownCurrentController() async {
-    _cancelAllTimers();
     if (_controller != null) {
       try {
         _controller!.removeListener(_onPlayerStateChanged);
@@ -393,36 +345,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     _isDisposed = true;
-    _cancelAllTimers();
+    _hideTimer?.cancel();
+    _hideTimer = null;
 
-    if (_controller != null) {
-      try {
-        _controller!.removeListener(_onPlayerStateChanged);
-        _controller!.stop();
-      } catch (e) {
-        debugPrint('[PlayerScreen] Safe catch on dispose stop: $e');
-      }
-      try {
-        _controller!.dispose();
-      } catch (e) {
-        debugPrint('[PlayerScreen] Safe catch on controller dispose: $e');
-      }
-      _controller = null;
-    }
+    _connectionManager.removeListener(_onConnectionStatusChanged);
+    _connectionManager.dispose();
 
+    _teardownCurrentController();
     _restoreSystemUI();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final hasError = _connectionManager.isFailed;
+    final isReconnecting = _connectionManager.isReconnecting;
+    final errorMessage = _connectionManager.errorMessage;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
           // VLC Video Surface
-          if (_controller != null)
+          if (_controller != null && !hasError)
             Center(
               child: VlcPlayer(
                 controller: _controller!,
@@ -439,8 +385,44 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: CircularProgressIndicator(color: Colors.redAccent),
             ),
 
+          // Reconnecting Banner Overlay
+          if (isReconnecting && !hasError)
+            Positioned(
+              top: 60,
+              left: 20,
+              right: 20,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orangeAccent),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orangeAccent),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          errorMessage.isNotEmpty ? errorMessage : 'Reconectando...',
+                          style: const TextStyle(color: Colors.orangeAccent, fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           // Error Overlay
-          if (_hasError)
+          if (hasError)
             Container(
               color: Colors.black87,
               child: Center(
@@ -449,16 +431,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   children: [
                     const Icon(Icons.error_outline, color: Colors.redAccent, size: 56),
                     const SizedBox(height: 16),
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      textAlign: TextAlign.center,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Text(
+                        errorMessage,
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
                       onPressed: () {
-                        _retryCount = 0;
-                        _retryPlayback();
+                        _connectStream();
                       },
                       icon: const Icon(Icons.refresh),
                       label: const Text('Tentar novamente'),
@@ -474,7 +458,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             visible: _isOverlayVisible,
             media: widget.media,
             isPlaying: _isPlaying,
-            isBuffering: _isBuffering,
+            isBuffering: _isBuffering || isReconnecting,
             position: _position,
             duration: _duration,
             currentAspect: _aspectRatio,
