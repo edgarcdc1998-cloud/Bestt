@@ -348,6 +348,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _hideTimer?.cancel();
     _hideTimer = null;
 
+    // Flush any pending debounced position immediately before disposing
+    if (!widget.media.isLive && _position.inSeconds > 5) {
+      widget.libraryRepository.saveResumePosition(widget.media.id, _position);
+      widget.libraryRepository.flushResumePositions();
+    }
+
     _connectionManager.removeListener(_onConnectionStatusChanged);
     _connectionManager.dispose();
 

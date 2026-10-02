@@ -2,16 +2,26 @@ import 'package:flutter/foundation.dart';
 import '../models/channel.dart';
 import '../models/media_item.dart';
 import '../services/app_storage.dart';
+import '../services/playback_position_debouncer.dart';
 
 class LibraryRepository extends ChangeNotifier {
   final AppStorage _storage;
+  late final PlaybackPositionDebouncer _positionDebouncer;
 
   List<Channel> _favoriteChannels = [];
   List<MediaItem> _favoriteMedia = [];
   List<MediaItem> _watchHistory = [];
   final Map<String, Duration> _resumePositions = {};
 
-  LibraryRepository(this._storage);
+  LibraryRepository(
+    this._storage, {
+    Duration debounceInterval = const Duration(seconds: 3),
+  }) {
+    _positionDebouncer = PlaybackPositionDebouncer(
+      interval: debounceInterval,
+      onPersist: _persistPositionsToStorage,
+    );
+  }
 
   List<Channel> get favoriteChannels => _favoriteChannels;
   List<MediaItem> get favoriteMedia => _favoriteMedia;
@@ -57,7 +67,6 @@ class LibraryRepository extends ChangeNotifier {
       }
     } catch (e, stack) {
       debugPrint('[LibraryRepository] Controlled recovery from corrupted storage during init: $e\n$stack');
-      // Graceful fallback to empty state without throwing
     }
     notifyListeners();
   }
@@ -106,10 +115,19 @@ class LibraryRepository extends ChangeNotifier {
     return _resumePositions[mediaId];
   }
 
-  Future<void> saveResumePosition(String mediaId, Duration position) async {
-    if (position.inSeconds < 5) return;
-    _resumePositions[mediaId] = position;
-    final mapToSave = _resumePositions.map((k, v) => MapEntry(k, v.inMilliseconds));
+  /// Debounced playback position recording (ETAPA 3).
+  /// Updates memory cache immediately and schedules persistent disk write.
+  void saveResumePosition(String mediaId, Duration position) {
+    _positionDebouncer.recordPosition(mediaId, position, _resumePositions);
+  }
+
+  /// Flushes any pending debounced position immediately to SharedPreferences.
+  Future<void> flushResumePositions() async {
+    await _positionDebouncer.flush(_resumePositions);
+  }
+
+  Future<void> _persistPositionsToStorage(Map<String, Duration> positions) async {
+    final mapToSave = positions.map((k, v) => MapEntry(k, v.inMilliseconds));
     await _storage.setJson(_keyResumePositions, mapToSave);
   }
 
@@ -117,5 +135,11 @@ class LibraryRepository extends ChangeNotifier {
     _watchHistory.clear();
     notifyListeners();
     await _storage.remove(_keyWatchHistory);
+  }
+
+  @override
+  void dispose() {
+    _positionDebouncer.dispose(_resumePositions);
+    super.dispose();
   }
 }
