@@ -1,0 +1,6 @@
+{
+  "name": "Best Player",
+  "description": "Reprodutor de IPTV, VOD e TV ao vivo para Android",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

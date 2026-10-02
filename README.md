@@ -1,11 +1,11 @@
-<div align="center">
+# Best Player
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Best Player é um aplicativo reprodutor de IPTV, VOD (filmes e séries) e canais de TV ao vivo com suporte a EPG, desenvolvido em Flutter para Android.
 
-  <h1>Built with AI Studio</h2>
-
-  <p>The fastest path from prompt to production with Gemini.</p>
-
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+## Funcionalidades
+- Suporte a Xtream Codes API e listas M3U/M3U8.
+- Reprodução de alta performance via VLC Player (`flutter_vlc_player_16kb`) compatível com páginas de 16 KB no Android 15+.
+- Grade de programação eletrônica (EPG).
+- Gerenciamento de favoritos e histórico de reprodução.
+- Retomada de posição para filmes e episódios de séries.
+- Interface moderna com controles de áudio, legendas, proporção de tela e modo imersivo.
