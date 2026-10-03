@@ -6,6 +6,11 @@ class PlayerBottomBar extends StatelessWidget {
   final Duration position;
   final Duration duration;
   final ValueChanged<Duration> onSeek;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback? onToggleSpeed;
+  final double currentSpeed;
+  final VoidCallback? onQuickChannels;
 
   const PlayerBottomBar({
     super.key,
@@ -13,6 +18,11 @@ class PlayerBottomBar extends StatelessWidget {
     required this.position,
     required this.duration,
     required this.onSeek,
+    this.onPrevious,
+    this.onNext,
+    this.onToggleSpeed,
+    this.currentSpeed = 1.0,
+    this.onQuickChannels,
   });
 
   String _formatDuration(Duration d) {
@@ -29,7 +39,7 @@ class PlayerBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (media.isLive) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
         child: Row(
           children: [
             Container(
@@ -54,6 +64,25 @@ class PlayerBottomBar extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            if (onPrevious != null)
+              IconButton(
+                icon: const Icon(Icons.skip_previous, color: Colors.white, size: 26),
+                tooltip: 'Canal Anterior',
+                onPressed: onPrevious,
+              ),
+            if (onQuickChannels != null)
+              TextButton.icon(
+                onPressed: onQuickChannels,
+                icon: const Icon(Icons.tv, color: Colors.white, size: 18),
+                label: const Text('CANAIS', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                style: TextButton.styleFrom(backgroundColor: Colors.white12),
+              ),
+            if (onNext != null)
+              IconButton(
+                icon: const Icon(Icons.skip_next, color: Colors.white, size: 26),
+                tooltip: 'Próximo Canal',
+                onPressed: onNext,
+              ),
           ],
         ),
       );
@@ -63,7 +92,7 @@ class PlayerBottomBar extends StatelessWidget {
     final double currentSeconds = position.inSeconds.toDouble().clamp(0.0, maxSeconds);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -90,13 +119,50 @@ class PlayerBottomBar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  _formatDuration(position),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatDuration(position),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                    const Text(' / ', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    Text(
+                      _formatDuration(duration),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
                 ),
-                Text(
-                  _formatDuration(duration),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onPrevious != null)
+                      IconButton(
+                        icon: const Icon(Icons.skip_previous, color: Colors.white, size: 22),
+                        tooltip: 'Anterior',
+                        onPressed: onPrevious,
+                      ),
+                    if (onToggleSpeed != null)
+                      TextButton(
+                        onPressed: onToggleSpeed,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white12,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          minimumSize: const Size(40, 26),
+                        ),
+                        child: Text(
+                          '${currentSpeed.toStringAsFixed(currentSpeed.truncateToDouble() == currentSpeed ? 0 : 2)}x',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (onNext != null)
+                      IconButton(
+                        icon: const Icon(Icons.skip_next, color: Colors.white, size: 22),
+                        tooltip: 'Próximo',
+                        onPressed: onNext,
+                      ),
+                  ],
                 ),
               ],
             ),

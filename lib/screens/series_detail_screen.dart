@@ -75,10 +75,28 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
       containerExtension: ep.containerExtension,
     );
 
+    List<MediaItem>? playlist;
+    if (_selectedSeason != null && _seasonsMap[_selectedSeason] != null) {
+      playlist = _seasonsMap[_selectedSeason]!.map((e) => MediaItem(
+        id: 'ep_${e.id}',
+        title: '${widget.series.title} - T${e.seasonNumber}E${e.episodeNumber} - ${e.title}',
+        streamUrl: e.streamUrl,
+        type: PlaybackType.series,
+        posterUrl: e.coverUrl ?? widget.series.posterUrl,
+        backdropUrl: widget.series.backdropUrl,
+        description: e.plot,
+        seriesId: e.seriesId,
+        seasonNumber: e.seasonNumber,
+        episodeNumber: e.episodeNumber,
+        containerExtension: e.containerExtension,
+      )).toList();
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PlayerScreen(
           media: media,
+          playlist: playlist,
           libraryRepository: widget.libraryRepo,
         ),
       ),

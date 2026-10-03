@@ -7,12 +7,15 @@ import 'player_top_bar.dart';
 
 class PlayerOverlay extends StatelessWidget {
   final bool visible;
+  final bool isLocked;
   final MediaItem media;
   final bool isPlaying;
   final bool isBuffering;
   final Duration position;
   final Duration duration;
   final String currentAspect;
+  final int? sleepTimerRemainingSeconds;
+  final double currentSpeed;
   final VoidCallback onBack;
   final VoidCallback onPlayPause;
   final VoidCallback? onRewind;
@@ -21,17 +24,27 @@ class PlayerOverlay extends StatelessWidget {
   final VoidCallback onToggleAspect;
   final VoidCallback onAudioTrack;
   final VoidCallback onSubtitles;
+  final VoidCallback onSleepTimer;
+  final VoidCallback onLock;
+  final VoidCallback onUnlock;
+  final VoidCallback? onQuickChannels;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback? onToggleSpeed;
   final VoidCallback onUserInteraction;
 
   const PlayerOverlay({
     super.key,
     required this.visible,
+    this.isLocked = false,
     required this.media,
     required this.isPlaying,
     required this.isBuffering,
     required this.position,
     required this.duration,
     required this.currentAspect,
+    this.sleepTimerRemainingSeconds,
+    this.currentSpeed = 1.0,
     required this.onBack,
     required this.onPlayPause,
     this.onRewind,
@@ -40,11 +53,43 @@ class PlayerOverlay extends StatelessWidget {
     required this.onToggleAspect,
     required this.onAudioTrack,
     required this.onSubtitles,
+    required this.onSleepTimer,
+    required this.onLock,
+    required this.onUnlock,
+    this.onQuickChannels,
+    this.onPrevious,
+    this.onNext,
+    this.onToggleSpeed,
     required this.onUserInteraction,
   });
 
   @override
   Widget build(BuildContext context) {
+    // When screen is locked, display only the floating unlock button
+    if (isLocked) {
+      return AnimatedOpacity(
+        opacity: visible ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 250),
+        child: IgnorePointer(
+          ignoring: !visible,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 32.0),
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: Colors.black54,
+                foregroundColor: Colors.redAccent,
+                onPressed: onUnlock,
+                tooltip: 'Desbloquear Tela',
+                child: const Icon(Icons.lock, size: 20),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: onUserInteraction,
@@ -70,7 +115,11 @@ class PlayerOverlay extends StatelessWidget {
                       onToggleAspect: onToggleAspect,
                       onAudioTrack: onAudioTrack,
                       onSubtitles: onSubtitles,
+                      onSleepTimer: onSleepTimer,
+                      onLock: onLock,
+                      onQuickChannels: onQuickChannels,
                       currentAspect: currentAspect,
+                      sleepTimerRemainingSeconds: sleepTimerRemainingSeconds,
                     ),
                   ),
                 ),
@@ -102,6 +151,11 @@ class PlayerOverlay extends StatelessWidget {
                       position: position,
                       duration: duration,
                       onSeek: onSeek,
+                      onPrevious: onPrevious,
+                      onNext: onNext,
+                      onToggleSpeed: onToggleSpeed,
+                      currentSpeed: currentSpeed,
+                      onQuickChannels: onQuickChannels,
                     ),
                   ),
                 ),

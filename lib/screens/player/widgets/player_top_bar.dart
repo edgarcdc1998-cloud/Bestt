@@ -8,7 +8,11 @@ class PlayerTopBar extends StatelessWidget {
   final VoidCallback onToggleAspect;
   final VoidCallback onAudioTrack;
   final VoidCallback onSubtitles;
+  final VoidCallback onSleepTimer;
+  final VoidCallback onLock;
+  final VoidCallback? onQuickChannels;
   final String currentAspect;
+  final int? sleepTimerRemainingSeconds;
 
   const PlayerTopBar({
     super.key,
@@ -17,8 +21,18 @@ class PlayerTopBar extends StatelessWidget {
     required this.onToggleAspect,
     required this.onAudioTrack,
     required this.onSubtitles,
+    required this.onSleepTimer,
+    required this.onLock,
+    this.onQuickChannels,
     required this.currentAspect,
+    this.sleepTimerRemainingSeconds,
   });
+
+  String _formatSleepTimer(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +74,12 @@ class PlayerTopBar extends StatelessWidget {
               ],
             ),
           ),
+          if (onQuickChannels != null)
+            PlayerIconButton(
+              icon: Icons.list,
+              onPressed: onQuickChannels!,
+              tooltip: 'Lista de Canais',
+            ),
           TextButton(
             onPressed: onToggleAspect,
             style: TextButton.styleFrom(
@@ -72,6 +92,31 @@ class PlayerTopBar extends StatelessWidget {
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              PlayerIconButton(
+                icon: Icons.bedtime_outlined,
+                onPressed: onSleepTimer,
+                tooltip: 'Temporizador de Sono',
+              ),
+              if (sleepTimerRemainingSeconds != null && sleepTimerRemainingSeconds! > 0)
+                Positioned(
+                  bottom: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _formatSleepTimer(sleepTimerRemainingSeconds!),
+                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           PlayerIconButton(
             icon: Icons.audiotrack,
             onPressed: onAudioTrack,
@@ -81,6 +126,11 @@ class PlayerTopBar extends StatelessWidget {
             icon: Icons.subtitles,
             onPressed: onSubtitles,
             tooltip: 'Legendas',
+          ),
+          PlayerIconButton(
+            icon: Icons.lock_outline,
+            onPressed: onLock,
+            tooltip: 'Bloquear Tela',
           ),
         ],
       ),

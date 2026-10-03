@@ -48,18 +48,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _playMedia(MediaItem media) {
+  void _playMedia(MediaItem media, {List<MediaItem>? playlist}) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PlayerScreen(
           media: media,
+          playlist: playlist,
           libraryRepository: _libraryRepo,
         ),
       ),
     );
   }
 
-  void _playChannel(Channel channel) {
+  void _playChannel(Channel channel, {List<Channel>? channelList}) {
     final media = MediaItem(
       id: channel.id,
       title: channel.name,
@@ -70,7 +71,22 @@ class _HomeScreenState extends State<HomeScreen> {
       categoryName: channel.categoryName,
       streamId: channel.streamId,
     );
-    _playMedia(media);
+
+    List<MediaItem>? playlist;
+    if (channelList != null && channelList.isNotEmpty) {
+      playlist = channelList.map((ch) => MediaItem(
+        id: ch.id,
+        title: ch.name,
+        streamUrl: ch.streamUrl,
+        type: PlaybackType.live,
+        posterUrl: ch.logoUrl,
+        categoryId: ch.categoryId,
+        categoryName: ch.categoryName,
+        streamId: ch.streamId,
+      )).toList();
+    }
+
+    _playMedia(media, playlist: playlist);
   }
 
   Widget _buildLiveTab() {
@@ -117,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Icon(Icons.play_circle_fill, color: Colors.redAccent, size: 32),
                 ],
               ),
-              onTap: () => _playChannel(ch),
+              onTap: () => _playChannel(ch, channelList: channels),
             );
           },
         );
@@ -149,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, index) {
             final movie = movies[index];
             return GestureDetector(
-              onTap: () => _playMedia(movie),
+              onTap: () => _playMedia(movie, playlist: movies),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
