@@ -13,27 +13,10 @@ class FakeAppStorage implements AppStorage {
   final Map<String, dynamic> _data = {};
 
   @override
-  T? getModel<T>(String key, T Function(Map<String, dynamic>) fromJson) => null;
-
-  @override
-  List<T> getModelList<T>(String key, T Function(Map<String, dynamic>) fromJson) => [];
-
-  @override
   String? getString(String key) => _data[key] as String?;
 
   @override
   Future<void> setString(String key, String value) async {
-    _data[key] = value;
-  }
-
-  @override
-  Map<String, dynamic>? getJsonMap(String key, {Map<String, dynamic>? defaultValue}) => defaultValue;
-
-  @override
-  List<dynamic>? getJsonList(String key, {List<dynamic>? defaultValue}) => defaultValue;
-
-  @override
-  Future<void> setJson(String key, dynamic value) async {
     _data[key] = value;
   }
 
@@ -45,6 +28,41 @@ class FakeAppStorage implements AppStorage {
   @override
   Future<void> clear() async {
     _data.clear();
+  }
+
+  @override
+  bool containsKey(String key) => _data.containsKey(key);
+
+  @override
+  Future<bool> setJson(String key, dynamic value) async {
+    _data[key] = value;
+    return true;
+  }
+
+  @override
+  Map<String, dynamic>? getJsonMap(String key, {Map<String, dynamic>? defaultValue}) {
+    final val = _data[key];
+    if (val is Map<String, dynamic>) return val;
+    if (val is Map) return Map<String, dynamic>.from(val);
+    return defaultValue;
+  }
+
+  @override
+  List<dynamic> getJsonList(String key, {List<dynamic> defaultValue = const []}) {
+    final val = _data[key];
+    if (val is List) return val;
+    return defaultValue;
+  }
+
+  @override
+  List<T> getModelList<T>(
+    String key,
+    T Function(Map<String, dynamic> json) fromJson, {
+    List<T> defaultValue = const [],
+  }) {
+    final rawList = getJsonList(key, defaultValue: []);
+    if (rawList.isEmpty) return defaultValue;
+    return rawList.map((e) => fromJson(Map<String, dynamic>.from(e as Map))).toList();
   }
 }
 
