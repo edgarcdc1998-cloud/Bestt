@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:best_player/models/media_item.dart';
@@ -111,7 +112,7 @@ void main() {
       final videoSurface = find.text('Video Surface Content');
       expect(videoSurface, findsOneWidget);
       await tester.tapAt(tester.getCenter(videoSurface));
-      await tester.pumpAndSettle();
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
 
       expect(tapped, isTrue);
     });
