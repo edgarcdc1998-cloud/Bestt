@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/channel.dart';
 import '../models/media_item.dart';
+import '../models/playback_type.dart';
 import '../services/playlist_service.dart';
 import '../services/xtream_service.dart';
 import 'authentication_repository.dart';
@@ -20,7 +21,7 @@ class CatalogRepository extends ChangeNotifier {
   List<MediaItem> _movies = [];
   List<MediaItem> _series = [];
 
-  // Indexed categories for fast O(1) lookup (ETAPA 4B)
+  // Indexed categories for fast O(1) lookup
   final Map<String, List<Channel>> _channelsByCategory = {};
   final Map<String, List<MediaItem>> _moviesByCategory = {};
   final Map<String, List<MediaItem>> _seriesByCategory = {};
@@ -47,7 +48,7 @@ class CatalogRepository extends ChangeNotifier {
   Future<void> loadCatalog() async {
     if (!_authRepo.isAuthenticated) return;
 
-    // Invalidate any previous catalog loading generations (ETAPA 5)
+    // Invalidate any previous catalog loading generations
     final generation = ++_catalogGeneration;
     _isLoading = true;
     notifyListeners();
@@ -112,10 +113,16 @@ class CatalogRepository extends ChangeNotifier {
         final fetchedChannels = await _playlistService.fetchPlaylist(_authRepo.m3uUrl!);
         if (generation != _catalogGeneration) return;
 
-        // Build local structures atomically
         final localChannelsByCategory = <String, List<Channel>>{};
         final orderedCategories = <String>[];
         final categoriesSet = <String>{};
+
+        final localMovies = <MediaItem>[];
+        final localSeries = <MediaItem>[];
+        final localMoviesByCategory = <String, List<MediaItem>>{};
+        final localSeriesByCategory = <String, List<MediaItem>>{};
+        final vodCategoriesSet = <String>{};
+        final seriesCategoriesSet = <String>{};
 
         for (final ch in fetchedChannels) {
           final cat = ch.categoryName ?? 'Geral';
@@ -127,9 +134,63 @@ class CatalogRepository extends ChangeNotifier {
           if (ch.categoryName != null && ch.categoryName != catId) {
             localChannelsByCategory.putIfAbsent(ch.categoryName!, () => []).add(ch);
           }
+
+          final catLower = cat.toLowerCase();
+          final urlLower = ch.streamUrl.toLowerCase();
+
+          final isMovie = catLower.contains('filme') ||
+              catLower.contains('movie') ||
+              catLower.contains('vod') ||
+              catLower.contains('cinema') ||
+              catLower.contains('cine') ||
+              urlLower.endsWith('.mp4') ||
+              urlLower.endsWith('.mkv') ||
+              urlLower.endsWith('.avi');
+
+          final isSeries = catLower.contains('série') ||
+              catLower.contains('serie') ||
+              catLower.contains('novela') ||
+              catLower.contains('temporada') ||
+              catLower.contains('season');
+
+          if (isSeries) {
+            final media = MediaItem(
+              id: ch.id,
+              title: ch.name,
+              streamUrl: ch.streamUrl,
+              type: PlaybackType.series,
+              posterUrl: ch.logoUrl,
+              categoryId: cat,
+              categoryName: cat,
+            );
+            localSeries.add(media);
+            seriesCategoriesSet.add(cat);
+            localSeriesByCategory.putIfAbsent(cat, () => []).add(media);
+          } else if (isMovie) {
+            final media = MediaItem(
+              id: ch.id,
+              title: ch.name,
+              streamUrl: ch.streamUrl,
+              type: PlaybackType.vod,
+              posterUrl: ch.logoUrl,
+              categoryId: cat,
+              categoryName: cat,
+            );
+            localMovies.add(media);
+            vodCategoriesSet.add(cat);
+            localMoviesByCategory.putIfAbsent(cat, () => []).add(media);
+          }
         }
 
         final localLiveCategories = orderedCategories
+            .map((cat) => {'category_id': cat, 'category_name': cat})
+            .toList();
+
+        final localVodCategories = vodCategoriesSet
+            .map((cat) => {'category_id': cat, 'category_name': cat})
+            .toList();
+
+        final localSeriesCategories = seriesCategoriesSet
             .map((cat) => {'category_id': cat, 'category_name': cat})
             .toList();
 
@@ -137,16 +198,19 @@ class CatalogRepository extends ChangeNotifier {
 
         // Commit state atomically
         _channels = fetchedChannels;
+        _movies = localMovies;
+        _series = localSeries;
+
         _channelsByCategory.clear();
         _channelsByCategory.addAll(localChannelsByCategory);
-        _liveCategories = localLiveCategories;
-
-        _vodCategories = [];
-        _seriesCategories = [];
-        _movies = [];
-        _series = [];
         _moviesByCategory.clear();
+        _moviesByCategory.addAll(localMoviesByCategory);
         _seriesByCategory.clear();
+        _seriesByCategory.addAll(localSeriesByCategory);
+
+        _liveCategories = localLiveCategories;
+        _vodCategories = localVodCategories;
+        _seriesCategories = localSeriesCategories;
       }
     } catch (e) {
       if (generation == _catalogGeneration) {

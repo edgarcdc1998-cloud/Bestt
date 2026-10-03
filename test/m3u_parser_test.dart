@@ -176,5 +176,77 @@ rtsp://server.com/live4
       expect(channels.first.name, equals('Canal 1'));
       expect(channels.last.name, equals('Canal 500'));
     });
+
+    test('14. Suporta atributos com aspas simples e sem aspas', () {
+      const m3u = '''#EXTM3U
+#EXTINF:-1 tvg-id='single1' group-title='Filmes HD' tvg-logo='http://logo.com/1.png',Cinema 1
+http://server.com/cinema1.m3u8
+#EXTINF:-1 tvg-id=unquoted2 group-title=Series,Serie 2
+http://server.com/serie2.m3u8
+''';
+      final channels = M3uParser.parse(m3u);
+      expect(channels.length, equals(2));
+      expect(channels[0].tvgId, equals('single1'));
+      expect(channels[0].categoryName, equals('Filmes HD'));
+      expect(channels[0].logoUrl, equals('http://logo.com/1.png'));
+      expect(channels[0].name, equals('Cinema 1'));
+
+      expect(channels[1].tvgId, equals('unquoted2'));
+      expect(channels[1].categoryName, equals('Series'));
+      expect(channels[1].name, equals('Serie 2'));
+    });
+
+    test('15. Suporta diretiva #EXTGRP para categorização', () {
+      const m3u = '''#EXTM3U
+#EXTINF:-1 tvg-id="c1",Canal com EXTGRP
+#EXTGRP:Desenhos & Kids
+http://server.com/kids.m3u8
+''';
+      final channels = M3uParser.parse(m3u);
+      expect(channels.length, equals(1));
+      expect(channels.first.name, equals('Canal com EXTGRP'));
+      expect(channels.first.categoryName, equals('Desenhos & Kids'));
+    });
+
+    test('16. Ignora diretivas intermediárias (#EXTVLCOPT, #EXTHTTP) sem perder metadados', () {
+      const m3u = '''#EXTM3U
+#EXTINF:-1 tvg-id="c1" group-title="Notícias",Globo News
+#EXTVLCOPT:http-user-agent=Mozilla/5.0
+#EXTVLCOPT:http-referrer=http://site.com
+http://server.com/globonews.m3u8
+''';
+      final channels = M3uParser.parse(m3u);
+      expect(channels.length, equals(1));
+      expect(channels.first.name, equals('Globo News'));
+      expect(channels.first.categoryName, equals('Notícias'));
+      expect(channels.first.streamUrl, equals('http://server.com/globonews.m3u8'));
+    });
+
+    test('17. Remove caractere BOM UTF-8 (\\uFEFF) sem corromper parsing', () {
+      const m3u = '\uFEFF#EXTM3U\n\uFEFF#EXTINF:-1 tvg-id="bom",Canal BOM\nhttp://server.com/bom.m3u8\n';
+      final channels = M3uParser.parse(m3u);
+      expect(channels.length, equals(1));
+      expect(channels.first.name, equals('Canal BOM'));
+      expect(channels.first.tvgId, equals('bom'));
+    });
+
+    test('18. Suporta protocolos udp, mms, rtmpe e hls', () {
+      const m3u = '''#EXTM3U
+#EXTINF:-1,UDP Stream
+udp://@239.255.0.1:1234
+#EXTINF:-1,MMS Stream
+mms://server.com/live
+#EXTINF:-1,RTMPE Stream
+rtmpe://server.com/secure
+#EXTINF:-1,HLS Custom
+hls://server.com/stream.m3u8
+''';
+      final channels = M3uParser.parse(m3u);
+      expect(channels.length, equals(4));
+      expect(channels[0].streamUrl, equals('udp://@239.255.0.1:1234'));
+      expect(channels[1].streamUrl, equals('mms://server.com/live'));
+      expect(channels[2].streamUrl, equals('rtmpe://server.com/secure'));
+      expect(channels[3].streamUrl, equals('hls://server.com/stream.m3u8'));
+    });
   });
 }

@@ -95,6 +95,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     try {
       await widget.authRepo.loginM3u(_m3uUrlController.text.trim());
       await widget.catalogRepo.loadCatalog();
+      if (widget.catalogRepo.channels.isEmpty) {
+        throw Exception('Nenhum canal encontrado na playlist informada.');
+      }
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(

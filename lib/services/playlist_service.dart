@@ -37,8 +37,8 @@ class PlaylistService {
     }
   }
 
-  /// Fetches an M3U playlist via HTTP streaming, decoding lines incrementally without loading full body string (ETAPA 4D).
-  /// Instrumented with detailed diagnostics to measure connection, download, decoding and parsing stages.
+  /// Fetches an M3U playlist via HTTP streaming with resilient UTF-8 decoding.
+  /// Instrumented with diagnostics to measure connection, download, decoding and parsing stages.
   Future<List<Channel>> fetchPlaylist(String url) async {
     final totalStopwatch = Stopwatch()..start();
     final sanitizedUrl = _sanitizeUrl(url);
@@ -71,7 +71,7 @@ class PlaylistService {
               byteCount += chunk.length;
               return chunk;
             })
-            .transform(utf8.decoder)
+            .transform(const Utf8Decoder(allowMalformed: true))
             .transform(const LineSplitter())) {
           lineCount++;
           lines.add(line);

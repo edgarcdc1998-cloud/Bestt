@@ -63,21 +63,28 @@ android {
                 }
             }
 
-            def storePath = keystoreProperties.getProperty('storeFile') ?: System.getenv('ANDROID_STORE_FILE')
-            def storePwd = keystoreProperties.getProperty('storePassword') ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
-            def alias = keystoreProperties.getProperty('keyAlias') ?: System.getenv('ANDROID_KEY_ALIAS')
-            def keyPwd = keystoreProperties.getProperty('keyPassword') ?: System.getenv('ANDROID_KEY_PASSWORD')
+            def storePath = keystoreProperties.getProperty('storeFile')
+                ?: System.getenv('ANDROID_STORE_FILE')
+                ?: 'release.keystore'
+            def storePwd = keystoreProperties.getProperty('storePassword')
+                ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            def alias = keystoreProperties.getProperty('keyAlias')
+                ?: System.getenv('ANDROID_KEY_ALIAS')
+            def keyPwd = keystoreProperties.getProperty('keyPassword')
+                ?: System.getenv('ANDROID_KEY_PASSWORD')
 
-            if (storePath && storePwd && alias && keyPwd) {
-                def kFile = file(storePath)
-                if (!kFile.exists()) {
-                    kFile = rootProject.file(storePath)
-                }
-                if (!kFile.exists()) {
-                    kFile = file("app/${storePath}")
-                }
-                if (kFile.exists()) {
-                    storeFile kFile
+            if (storePwd && alias && keyPwd) {
+                def candidateFiles = [
+                    file(storePath),
+                    rootProject.file(storePath),
+                    file("app/${storePath}"),
+                    rootProject.file("app/${storePath}"),
+                    file("release.keystore"),
+                    rootProject.file("app/release.keystore")
+                ]
+                def resolvedFile = candidateFiles.find { it != null && it.exists() }
+                if (resolvedFile != null) {
+                    storeFile resolvedFile
                     storePassword storePwd
                     keyAlias alias
                     keyPassword keyPwd
@@ -88,7 +95,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig = (signingConfigs.release.storeFile != null) ? signingConfigs.release : signingConfigs.debug
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

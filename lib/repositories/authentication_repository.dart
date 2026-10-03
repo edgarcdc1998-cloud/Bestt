@@ -73,8 +73,6 @@ class AuthenticationRepository extends ChangeNotifier {
   }
 
   Future<bool> loginM3u(String url) async {
-    // Validate by fetching channels
-    await _playlistService.fetchPlaylist(url);
     _m3uUrl = url;
     _authType = AuthType.m3u;
 

@@ -41,24 +41,40 @@ jobs:
       - name: Run Tests
         run: flutter test
 
-      - name: Validate Release Secrets and Configure Keystore
+      - name: Verify Required Android Signing Secrets
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
-            echo "::error::SECURITY CHECK FAILED: Missing required Android Release signing secrets."
-            echo "::error::Please configure all 4 repository secrets under Settings > Secrets and variables > Actions:"
-            echo "::error::- ANDROID_KEYSTORE_BASE64"
-            echo "::error::- ANDROID_KEYSTORE_PASSWORD"
-            echo "::error::- ANDROID_KEY_ALIAS"
-            echo "::error::- ANDROID_KEY_PASSWORD"
-            echo "::error::Build aborted. Debug fallback is disabled for Release builds."
+          MISSING_SECRETS=()
+          [ -z "$ANDROID_KEYSTORE_BASE64" ] && MISSING_SECRETS+=("ANDROID_KEYSTORE_BASE64")
+          [ -z "$ANDROID_KEYSTORE_PASSWORD" ] && MISSING_SECRETS+=("ANDROID_KEYSTORE_PASSWORD")
+          [ -z "$ANDROID_KEY_ALIAS" ] && MISSING_SECRETS+=("ANDROID_KEY_ALIAS")
+          [ -z "$ANDROID_KEY_PASSWORD" ] && MISSING_SECRETS+=("ANDROID_KEY_PASSWORD")
+
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo "::error title=Missing Signing Secrets::The following required GitHub Actions Secrets are missing:"
+            for secret in "${MISSING_SECRETS[@]}"; do
+              echo "::error::- $secret"
+            done
+            echo "=========================================================================="
+            echo "ERROR: Release APK signing cannot proceed without all 4 secrets configured."
+            echo "Please navigate to: Repository Settings -> Secrets and variables -> Actions"
+            echo "and define the missing secrets listed above."
+            echo "=========================================================================="
             exit 1
           fi
+          echo "All 4 required Android signing secrets are present."
 
+      - name: Configure Keystore and Properties
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
           cat <<EOF > android/key.properties
           storeFile=release.keystore

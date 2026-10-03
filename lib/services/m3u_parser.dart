@@ -2,13 +2,13 @@ import 'dart:convert';
 import '../models/channel.dart';
 
 class M3uParser {
-  // Pre-compiled regular expressions for high-frequency attribute extraction (ETAPA 4B)
-  static final RegExp _tvgIdRegex = RegExp(r'tvg-id="([^"]*)"', caseSensitive: false);
-  static final RegExp _tvgNameRegex = RegExp(r'tvg-name="([^"]*)"', caseSensitive: false);
-  static final RegExp _tvgLogoRegex = RegExp(r'tvg-logo="([^"]*)"', caseSensitive: false);
-  static final RegExp _groupTitleRegex = RegExp(r'group-title="([^"]*)"', caseSensitive: false);
+  // Regex to extract key-value attributes supporting double quotes, single quotes, and unquoted values
+  static final RegExp _attributeRegex = RegExp(
+    r'''([\w\-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s]+))''',
+    caseSensitive: false,
+  );
 
-  /// Existing public API: Parses full M3U content string without allocating intermediate List<String>.
+  /// Existing public API: Parses full M3U content string.
   static List<Channel> parse(String content) {
     if (content.isEmpty) return [];
     return parseLines(LineSplitter.split(content));
@@ -26,62 +26,91 @@ class M3uParser {
     String? currentId;
 
     for (final rawLine in lines) {
-      final line = rawLine.trim();
+      var line = rawLine.trim();
       if (line.isEmpty) continue;
 
+      // Strip UTF-8 Byte Order Mark (BOM) if present at line start
+      if (line.startsWith('\uFEFF')) {
+        line = line.substring(1).trim();
+        if (line.isEmpty) continue;
+      }
+
       if (line.startsWith('#EXTINF:')) {
-        // Extract attributes using pre-compiled regexes
-        currentTvgId = _extractAttribute(line, _tvgIdRegex);
-        currentTvgName = _extractAttribute(line, _tvgNameRegex);
-        currentLogo = _extractAttribute(line, _tvgLogoRegex);
-        currentCategory = _extractAttribute(line, _groupTitleRegex);
+        final commaIndex = line.lastIndexOf(',');
+        final attributesPart = commaIndex != -1 ? line.substring(0, commaIndex) : line;
+
+        // Extract all attributes via single regex iteration
+        final matches = _attributeRegex.allMatches(attributesPart);
+        for (final match in matches) {
+          final key = match.group(1)?.toLowerCase();
+          final val = (match.group(2) ?? match.group(3) ?? match.group(4))?.trim();
+          if (val == null || val.isEmpty) continue;
+
+          switch (key) {
+            case 'tvg-id':
+              currentTvgId = val;
+              break;
+            case 'tvg-name':
+              currentTvgName = val;
+              break;
+            case 'tvg-logo':
+              currentLogo = val;
+              break;
+            case 'group-title':
+              currentCategory = val;
+              break;
+          }
+        }
 
         // Extract channel name (after last comma)
-        final commaIndex = line.lastIndexOf(',');
         if (commaIndex != -1 && commaIndex < line.length - 1) {
-          currentName = line.substring(commaIndex + 1).trim();
+          final extractedName = line.substring(commaIndex + 1).trim();
+          currentName = extractedName.isNotEmpty ? extractedName : (currentTvgName ?? 'Canal ${channels.length + 1}');
         } else {
           currentName = currentTvgName ?? 'Canal ${channels.length + 1}';
         }
         currentId = currentTvgId ?? 'channel_${channels.length + 1}';
-      } else if (!line.startsWith('#') &&
-          (line.startsWith('http://') ||
-              line.startsWith('https://') ||
-              line.startsWith('rtmp://') ||
-              line.startsWith('rtsp://'))) {
-        if (currentName != null) {
-          channels.add(
-            Channel(
-              id: currentId ?? 'channel_${channels.length + 1}',
-              name: currentName,
-              streamUrl: line,
-              logoUrl: currentLogo,
-              categoryId: currentCategory ?? 'Geral',
-              categoryName: currentCategory ?? 'Geral',
-              tvgId: currentTvgId,
-              tvgName: currentTvgName,
-            ),
-          );
+      } else if (line.startsWith('#EXTGRP:')) {
+        final grp = line.substring(8).trim();
+        if (grp.isNotEmpty) {
+          currentCategory = grp;
         }
-        // Reset state for next entry
-        currentName = null;
-        currentLogo = null;
-        currentTvgId = null;
-        currentTvgName = null;
-        currentCategory = null;
-        currentId = null;
+      } else if (!line.startsWith('#')) {
+        // Check for stream URLs
+        final lower = line.toLowerCase();
+        if (lower.startsWith('http://') ||
+            lower.startsWith('https://') ||
+            lower.startsWith('rtmp://') ||
+            lower.startsWith('rtsp://') ||
+            lower.startsWith('udp://') ||
+            lower.startsWith('mms://') ||
+            lower.startsWith('rtmpe://') ||
+            lower.startsWith('hls://')) {
+          if (currentName != null) {
+            channels.add(
+              Channel(
+                id: currentId ?? 'channel_${channels.length + 1}',
+                name: currentName,
+                streamUrl: line,
+                logoUrl: currentLogo,
+                categoryId: currentCategory ?? 'Geral',
+                categoryName: currentCategory ?? 'Geral',
+                tvgId: currentTvgId,
+                tvgName: currentTvgName,
+              ),
+            );
+          }
+          // Reset state for next entry
+          currentName = null;
+          currentLogo = null;
+          currentTvgId = null;
+          currentTvgName = null;
+          currentCategory = null;
+          currentId = null;
+        }
       }
     }
 
     return channels;
-  }
-
-  static String? _extractAttribute(String line, RegExp regex) {
-    final match = regex.firstMatch(line);
-    if (match != null && match.groupCount >= 1) {
-      final val = match.group(1)?.trim();
-      return (val != null && val.isNotEmpty) ? val : null;
-    }
-    return null;
   }
 }
