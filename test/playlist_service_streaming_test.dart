@@ -228,5 +228,17 @@ http://stream.com/espn.m3u8
         expect(channels[i].name, equals('Canal ${i + 1}'));
       }
     });
+
+    test('14. Sanitiza credenciais e parâmetros sensíveis em logs de diagnóstico', () async {
+      const m3u = '#EXTM3U\n#EXTINF:-1,Canal Seguro\nhttp://stream.com/live.m3u8\n';
+      final client = MockStreamHttpClient(
+        byteStream: Stream.value(utf8.encode(m3u)),
+      );
+      final service = PlaylistService(httpClient: client);
+
+      final channels = await service.fetchPlaylist('http://server.com:8080/get.php?username=myuser&password=mypassword&type=m3u_plus');
+      expect(channels.length, equals(1));
+      expect(channels.first.name, equals('Canal Seguro'));
+    });
   });
 }
