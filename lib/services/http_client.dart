@@ -52,6 +52,33 @@ class HttpClient {
     }
   }
 
+  /// Streaming GET request for large payloads (e.g. M3U playlists) without full body materialization (ETAPA 4D).
+  Future<http.StreamedResponse> getStream(
+    Uri uri, {
+    Map<String, String>? headers,
+    int maxRetries = 2,
+  }) async {
+    int attempts = 0;
+    while (true) {
+      attempts++;
+      try {
+        final request = http.Request('GET', uri);
+        request.headers.addAll(_buildHeaders(headers));
+        final response = await _client.send(request).timeout(timeout);
+        return response;
+      } on SocketException {
+        if (attempts > maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * attempts));
+      } on TimeoutException {
+        if (attempts > maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * attempts));
+      } catch (e) {
+        if (attempts > maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * attempts));
+      }
+    }
+  }
+
   Future<dynamic> getJson(
     Uri uri, {
     Map<String, String>? headers,

@@ -55,6 +55,18 @@ class FakeHttpClient extends HttpClient {
   Future<http.Response> get(Uri url, {Map<String, String>? headers}) async {
     return http.Response(m3uResponse, 200);
   }
+
+  @override
+  Future<http.StreamedResponse> getStream(
+    Uri uri, {
+    Map<String, String>? headers,
+    int maxRetries = 2,
+  }) async {
+    return http.StreamedResponse(
+      Stream.value(utf8.encode(m3uResponse)),
+      200,
+    );
+  }
 }
 
 void main() {
