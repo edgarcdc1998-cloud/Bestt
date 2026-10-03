@@ -170,7 +170,7 @@ class _EpgScreenState extends State<EpgScreen> {
                                       final timeFmt = DateFormat('HH:mm');
 
                                       return Card(
-                                        color: isNow ? Colors.redAccent.withOpacity(0.15) : const Color(0xFF1E1E1E),
+                                        color: isNow ? Colors.redAccent.withValues(alpha: 0.15) : const Color(0xFF1E1E1E),
                                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                                         child: Padding(
                                           padding: const EdgeInsets.all(12.0),

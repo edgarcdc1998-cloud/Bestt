@@ -111,6 +111,7 @@ void main() {
       }));
 
       expect(manager.currentGeneration, equals(1));
+      expect(firstGenId, equals(1));
 
       // Immediately switch channel / start Connection B (generation 2)
       bool connectionBSucceeded = false;

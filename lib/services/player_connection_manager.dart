@@ -11,12 +11,10 @@ enum ConnectionStatus {
 }
 
 typedef ConnectionCallback = Future<void> Function(int generationId);
-typedef DelayFunction = Future<void> Function(Duration duration);
 
 class PlayerConnectionManager {
   final int maxRetries;
   final Duration baseBackoff;
-  final DelayFunction _delayFunction;
 
   ConnectionStatus _status = ConnectionStatus.idle;
   String _errorMessage = '';
@@ -35,8 +33,7 @@ class PlayerConnectionManager {
   PlayerConnectionManager({
     this.maxRetries = 3,
     this.baseBackoff = const Duration(seconds: 2),
-    DelayFunction? delayFunction,
-  }) : _delayFunction = delayFunction ?? Future.delayed;
+  });
 
   ConnectionStatus get status => _status;
   String get errorMessage => _errorMessage;

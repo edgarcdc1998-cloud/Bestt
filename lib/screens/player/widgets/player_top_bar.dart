@@ -51,7 +51,7 @@ class PlayerTopBar extends StatelessWidget {
                   Text(
                     media.categoryName!,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 12,
                     ),
                     maxLines: 1,

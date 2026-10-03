@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:best_player/models/channel.dart';
 import 'package:best_player/repositories/authentication_repository.dart';
 import 'package:best_player/repositories/catalog_repository.dart';
 import 'package:best_player/services/app_storage.dart';

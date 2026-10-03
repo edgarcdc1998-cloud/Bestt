@@ -274,7 +274,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_isDisposed || _controller == null) return;
     try {
       final tracks = await _controller!.getAudioTracks();
-      if (_isDisposed || !mounted || tracks == null || tracks.isEmpty) return;
+      if (_isDisposed || !mounted || tracks.isEmpty) return;
 
       if (context.mounted) {
         showModalBottomSheet(
@@ -307,7 +307,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_isDisposed || _controller == null) return;
     try {
       final subtitles = await _controller!.getSpuTracks();
-      if (_isDisposed || !mounted || subtitles == null || subtitles.isEmpty) return;
+      if (_isDisposed || !mounted || subtitles.isEmpty) return;
 
       if (context.mounted) {
         showModalBottomSheet(

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/channel.dart';
 import '../models/media_item.dart';
-import '../models/xtream_config.dart';
 import '../services/playlist_service.dart';
 import '../services/xtream_service.dart';
 import 'authentication_repository.dart';

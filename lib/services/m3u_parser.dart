@@ -11,9 +11,7 @@ class M3uParser {
   /// Existing public API: Parses full M3U content string without allocating intermediate List<String>.
   static List<Channel> parse(String content) {
     if (content.isEmpty) return [];
-    return parseLines(const LineSplitter().bind(Stream.value(content)).cast<String>() != null
-        ? LineSplitter.split(content)
-        : []);
+    return parseLines(LineSplitter.split(content));
   }
 
   /// Line-by-line parser accepting any lazy or eager Iterable<String>.

@@ -165,9 +165,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.redAccent.withOpacity(0.2),
+                          color: Colors.redAccent.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
                         ),
                         child: Text(
                           _errorMessage!,
