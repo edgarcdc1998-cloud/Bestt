@@ -168,12 +168,15 @@ http://stream.com/c1.m3u8
       );
 
       // Start Load A (Generation 1)
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog();
       expect(catalogRepo.catalogGeneration, equals(1));
 
       // Start Load B (Generation 2)
-      await authRepo.loginM3u('http://server.com/listB.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listB.m3u');
+      await authRepo.init();
       final futureB = catalogRepo.loadCatalog();
       expect(catalogRepo.catalogGeneration, equals(2));
 
@@ -217,10 +220,13 @@ http://stream.com/c1.m3u8
         playlistService: playlistService,
       );
 
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog();
 
-      await authRepo.loginM3u('http://server.com/listB.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listB.m3u');
+      await authRepo.init();
       final futureB = catalogRepo.loadCatalog();
 
       // Complete A first
@@ -253,13 +259,17 @@ http://stream.com/c1.m3u8
         playlistService: playlistService,
       );
 
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog(); // Gen 1
 
-      await authRepo.loginM3u('http://server.com/listB.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listB.m3u');
+      await authRepo.init();
       final futureB = catalogRepo.loadCatalog(); // Gen 2
 
-      await authRepo.loginM3u('http://server.com/listC.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listC.m3u');
+      await authRepo.init();
       final futureC = catalogRepo.loadCatalog(); // Gen 3
 
       // Order of completion: B, A, C
@@ -297,10 +307,13 @@ http://stream.com/c1.m3u8
         playlistService: playlistService,
       );
 
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog(); // Gen 1
 
-      await authRepo.loginM3u('http://server.com/listB.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listB.m3u');
+      await authRepo.init();
       final futureB = catalogRepo.loadCatalog(); // Gen 2
 
       // Complete B successfully
@@ -332,7 +345,9 @@ http://stream.com/c1.m3u8
         playlistService: playlistService,
       );
 
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog();
       expect(catalogRepo.isLoading, isTrue);
 
@@ -358,11 +373,14 @@ http://stream.com/c1.m3u8
         playlistService: playlistService,
       );
 
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog(); // Gen 1
       expect(catalogRepo.isLoading, isTrue);
 
-      await authRepo.loginM3u('http://server.com/listB.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listB.m3u');
+      await authRepo.init();
       final futureB = catalogRepo.loadCatalog(); // Gen 2
       expect(catalogRepo.isLoading, isTrue);
 
@@ -398,13 +416,17 @@ http://stream.com/c1.m3u8
         playlistService: playlistService,
       );
 
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog(); // Gen 1
 
-      await authRepo.loginM3u('http://server.com/listB.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listB.m3u');
+      await authRepo.init();
       final futureB = catalogRepo.loadCatalog(); // Gen 2
 
-      await authRepo.loginM3u('http://server.com/listC.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listC.m3u');
+      await authRepo.init();
       final futureC = catalogRepo.loadCatalog(); // Gen 3
 
       // B succeeds
@@ -441,10 +463,13 @@ http://stream.com/c1.m3u8
         playlistService: playlistService,
       );
 
-      await authRepo.loginM3u('http://server.com/listA.m3u');
+      await storage.setString('auth_type', 'm3u');
+      await storage.setString('m3u_url', 'http://server.com/listA.m3u');
+      await authRepo.init();
       final futureA = catalogRepo.loadCatalog();
 
-      await authRepo.loginM3u('http://server.com/listB.m3u');
+      await storage.setString('m3u_url', 'http://server.com/listB.m3u');
+      await authRepo.init();
       final futureB = catalogRepo.loadCatalog();
 
       // Finish B
