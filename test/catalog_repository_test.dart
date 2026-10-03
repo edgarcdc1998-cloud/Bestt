@@ -128,10 +128,7 @@ http://stream.com/c1.m3u8
       final httpClient = ControllableFakeHttpClient();
       httpClient.setupUrlResponse('http://server.com/listA.m3u', m3uA);
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
       await authRepo.loginM3u('http://server.com/listA.m3u');
 
       final catalogRepo = CatalogRepository(
@@ -157,10 +154,7 @@ http://stream.com/c1.m3u8
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -210,10 +204,7 @@ http://stream.com/c1.m3u8
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -249,10 +240,7 @@ http://stream.com/c1.m3u8
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final completerC = httpClient.setupAsyncUrl('http://server.com/listC.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -297,10 +285,7 @@ http://stream.com/c1.m3u8
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -335,10 +320,7 @@ http://stream.com/c1.m3u8
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -363,10 +345,7 @@ http://stream.com/c1.m3u8
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -406,10 +385,7 @@ http://stream.com/c1.m3u8
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final completerC = httpClient.setupAsyncUrl('http://server.com/listC.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -453,10 +429,7 @@ http://stream.com/c1.m3u8
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
-      final authRepo = AuthenticationRepository(
-        storage,
-        playlistService: playlistService,
-      );
+      final authRepo = AuthenticationRepository(storage);
 
       final catalogRepo = CatalogRepository(
         authRepo,

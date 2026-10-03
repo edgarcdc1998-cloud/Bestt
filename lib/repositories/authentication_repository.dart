@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/xtream_config.dart';
 import '../services/app_storage.dart';
-import '../services/playlist_service.dart';
 import '../services/xtream_service.dart';
 
 enum AuthType {
@@ -13,7 +12,6 @@ enum AuthType {
 class AuthenticationRepository extends ChangeNotifier {
   final AppStorage _storage;
   final XtreamService _xtreamService;
-  final PlaylistService _playlistService;
 
   AuthType _authType = AuthType.none;
   XtreamConfig? _xtreamConfig;
@@ -24,9 +22,7 @@ class AuthenticationRepository extends ChangeNotifier {
   AuthenticationRepository(
     this._storage, {
     XtreamService? xtreamService,
-    PlaylistService? playlistService,
-  })  : _xtreamService = xtreamService ?? XtreamService(),
-        _playlistService = playlistService ?? PlaylistService();
+  }) : _xtreamService = xtreamService ?? XtreamService();
 
   AuthType get authType => _authType;
   XtreamConfig? get xtreamConfig => _xtreamConfig;
