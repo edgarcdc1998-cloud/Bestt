@@ -49,15 +49,18 @@ class _PlayerQuickChannelDrawerState extends State<PlayerQuickChannelDrawer> {
                 children: [
                   const Icon(Icons.list_alt, color: Colors.redAccent),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Lista de Canais',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  const Expanded(
+                    child: Text(
+                      'Lista de Canais',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white70),
                     onPressed: widget.onClose,

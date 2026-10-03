@@ -108,9 +108,9 @@ void main() {
         ),
       );
 
-      expect(find.text('Video Surface Content'), findsOneWidget);
-
-      await tester.tap(find.text('Video Surface Content'));
+      final videoSurface = find.text('Video Surface Content');
+      expect(videoSurface, findsOneWidget);
+      await tester.tapAt(tester.getCenter(videoSurface));
       await tester.pumpAndSettle();
 
       expect(tapped, isTrue);
