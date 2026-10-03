@@ -49,13 +49,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
-            echo "::error::FALHA DE SEGURANCA: Secrets de assinatura Release ausentes no GitHub Actions."
-            echo "::error::Para gerar o APK Release distribuivel, configure os seguintes Secrets no repositorio:"
+            echo "::error::SECURITY CHECK FAILED: Missing required Android Release signing secrets."
+            echo "::error::Please configure all 4 repository secrets under Settings > Secrets and variables > Actions:"
             echo "::error::- ANDROID_KEYSTORE_BASE64"
             echo "::error::- ANDROID_KEYSTORE_PASSWORD"
             echo "::error::- ANDROID_KEY_ALIAS"
             echo "::error::- ANDROID_KEY_PASSWORD"
-            echo "::error::O build nao utilizara chaves debug para APK Release."
+            echo "::error::Build aborted. Debug fallback is disabled for Release builds."
             exit 1
           fi
 
@@ -68,6 +68,11 @@ jobs:
           EOF
 
       - name: Build APK
+        env:
+          ANDROID_STORE_FILE: release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: flutter build apk --release
 
       - name: Clean up Keystore and Secrets
