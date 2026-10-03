@@ -41,8 +41,39 @@ jobs:
       - name: Run Tests
         run: flutter test
 
+      - name: Validate Release Secrets and Configure Keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::error::FALHA DE SEGURANCA: Secrets de assinatura Release ausentes no GitHub Actions."
+            echo "::error::Para gerar o APK Release distribuivel, configure os seguintes Secrets no repositorio:"
+            echo "::error::- ANDROID_KEYSTORE_BASE64"
+            echo "::error::- ANDROID_KEYSTORE_PASSWORD"
+            echo "::error::- ANDROID_KEY_ALIAS"
+            echo "::error::- ANDROID_KEY_PASSWORD"
+            echo "::error::O build nao utilizara chaves debug para APK Release."
+            exit 1
+          fi
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          cat <<EOF > android/key.properties
+          storeFile=release.keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
       - name: Build APK
         run: flutter build apk --release
+
+      - name: Clean up Keystore and Secrets
+        if: always()
+        run: |
+          rm -f android/app/release.keystore android/key.properties
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

@@ -22,6 +22,25 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
+def getKeystoreProperty(String propKey, String envKey) {
+    if (keystoreProperties.containsKey(propKey)) {
+        return keystoreProperties.getProperty(propKey)
+    }
+    def envVal = System.getenv(envKey)
+    if (envVal != null && !envVal.trim().isEmpty()) {
+        return envVal.trim()
+    }
+    return null
+}
+
 android {
     namespace "com.scovil1.bestplayer"
     compileSdkVersion 35
@@ -53,9 +72,28 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            def storePath = getKeystoreProperty('storeFile', 'ANDROID_STORE_FILE')
+            def storePwd = getKeystoreProperty('storePassword', 'ANDROID_KEYSTORE_PASSWORD')
+            def alias = getKeystoreProperty('keyAlias', 'ANDROID_KEY_ALIAS')
+            def keyPwd = getKeystoreProperty('keyPassword', 'ANDROID_KEY_PASSWORD')
+
+            if (storePath && storePwd && alias && keyPwd) {
+                def kFile = file(storePath)
+                if (kFile.exists()) {
+                    storeFile kFile
+                    storePassword storePwd
+                    keyAlias alias
+                    keyPassword keyPwd
+                }
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

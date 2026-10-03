@@ -16,3 +16,11 @@
 local.properties
 .env
 debug.keystore
+
+# Keystores & Signing Secrets
+*.jks
+*.keystore
+key.properties
+android/key.properties
+android/app/*.keystore
+android/app/*.jks
