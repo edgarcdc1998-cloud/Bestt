@@ -55,6 +55,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int? _sleepTimerRemainingSeconds;
   Timer? _sleepCountdownTimer;
 
+  // Startup Diagnostic Instrumentation
+  DateTime? _startupStartedAt;
+  bool _startupInitializedLogged = false;
+  bool _startupPlayingLogged = false;
+  bool? _lastBufferingState;
+
+  int _startupElapsedMs() {
+    final startedAt = _startupStartedAt;
+    if (startedAt == null) return 0;
+    return DateTime.now().difference(startedAt).inMilliseconds;
+  }
+
   Timer? _hideTimer;
 
   @override
@@ -117,7 +129,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (_isDisposed || generation != _connectionManager.currentGeneration) return;
 
+      _startupStartedAt = DateTime.now();
+      _startupInitializedLogged = false;
+      _startupPlayingLogged = false;
+      _lastBufferingState = null;
+
+      debugPrint('[PLAYER_STARTUP] connection attempt started t=0ms');
+
       final resumePos = widget.libraryRepository.getResumePosition(_currentMedia.id);
+
+      debugPrint(
+        '[PLAYER_STARTUP] creating VLC controller '
+        't=${_startupElapsedMs()}ms',
+      );
 
       final controller = VlcPlayerController.network(
         _currentMedia.streamUrl,
@@ -146,6 +170,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       _controller = controller;
       _controller!.addListener(_onPlayerStateChanged);
+
+      debugPrint(
+        '[PLAYER_STARTUP] VLC controller created/listener attached '
+        't=${_startupElapsedMs()}ms',
+      );
 
       _safeSetState(() {
         _isBuffering = true;
@@ -183,6 +212,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final val = _controller!.value;
 
+    if (!_startupInitializedLogged && val.isInitialized) {
+      _startupInitializedLogged = true;
+      debugPrint(
+        '[PLAYER_STARTUP] VLC initialized '
+        't=${_startupElapsedMs()}ms',
+      );
+    }
+
     if (val.hasError) {
       final desc = val.errorDescription.isNotEmpty ? val.errorDescription : 'Erro na reprodução do fluxo';
       _connectionManager.onStreamError(desc);
@@ -193,6 +230,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final isBuffering = val.isBuffering;
     final pos = val.position;
     final dur = val.duration;
+
+    if (_lastBufferingState != isBuffering) {
+      _lastBufferingState = isBuffering;
+      debugPrint(
+        '[PLAYER_STARTUP] buffering=$isBuffering '
+        't=${_startupElapsedMs()}ms',
+      );
+    }
+
+    if (!_startupPlayingLogged && isPlaying) {
+      _startupPlayingLogged = true;
+      debugPrint(
+        '[PLAYER_STARTUP] VLC playing / first playback state '
+        't=${_startupElapsedMs()}ms',
+      );
+    }
 
     if (isPlaying) {
       _connectionManager.onStreamConnected();
