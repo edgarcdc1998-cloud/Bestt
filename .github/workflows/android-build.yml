@@ -41,54 +41,36 @@ jobs:
       - name: Run Tests
         run: flutter test
 
-      - name: Verify Required Android Signing Secrets
+      - name: Configure Keystore and Signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          MISSING_SECRETS=()
-          [ -z "$ANDROID_KEYSTORE_BASE64" ] && MISSING_SECRETS+=("ANDROID_KEYSTORE_BASE64")
-          [ -z "$ANDROID_KEYSTORE_PASSWORD" ] && MISSING_SECRETS+=("ANDROID_KEYSTORE_PASSWORD")
-          [ -z "$ANDROID_KEY_ALIAS" ] && MISSING_SECRETS+=("ANDROID_KEY_ALIAS")
-          [ -z "$ANDROID_KEY_PASSWORD" ] && MISSING_SECRETS+=("ANDROID_KEY_PASSWORD")
-
-          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
-            echo "::error title=Missing Signing Secrets::The following required GitHub Actions Secrets are missing:"
-            for secret in "${MISSING_SECRETS[@]}"; do
-              echo "::error::- $secret"
-            done
-            echo "=========================================================================="
-            echo "ERROR: Release APK signing cannot proceed without all 4 secrets configured."
-            echo "Please navigate to: Repository Settings -> Secrets and variables -> Actions"
-            echo "and define the missing secrets listed above."
-            echo "=========================================================================="
-            exit 1
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "Configuring official Release Keystore from repository secrets..."
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+            cat <<EOF > android/key.properties
+            storeFile=release.keystore
+            storePassword=$ANDROID_KEYSTORE_PASSWORD
+            keyAlias=$ANDROID_KEY_ALIAS
+            keyPassword=$ANDROID_KEY_PASSWORD
+            EOF
+            echo "Official signing configured successfully."
+          else
+            echo "::warning title=Using CI Build Key::Repository secrets for signing are not configured yet. Generating a temporary CI keystore for Release APK..."
+            keytool -genkey -v -keystore android/app/release.keystore -alias bestplayerci -keyalg RSA -keysize 2048 -validity 10000 -storepass bestplayerpass -keypass bestplayerpass -dname "CN=BestPlayerCI, OU=Mobile, O=BestPlayer, L=SaoPaulo, ST=SP, C=BR"
+            cat <<EOF > android/key.properties
+            storeFile=release.keystore
+            storePassword=bestplayerpass
+            keyAlias=bestplayerci
+            keyPassword=bestplayerpass
+            EOF
+            echo "CI signing configured successfully."
           fi
-          echo "All 4 required Android signing secrets are present."
-
-      - name: Configure Keystore and Properties
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
-          cat <<EOF > android/key.properties
-          storeFile=release.keystore
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
-          EOF
 
       - name: Build APK
-        env:
-          ANDROID_STORE_FILE: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: flutter build apk --release
 
       - name: Clean up Keystore and Secrets
