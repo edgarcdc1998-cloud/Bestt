@@ -19,6 +19,11 @@ class CatalogRepository extends ChangeNotifier {
   List<MediaItem> _movies = [];
   List<MediaItem> _series = [];
 
+  // Indexed categories for fast O(1) lookup (ETAPA 4B)
+  final Map<String, List<Channel>> _channelsByCategory = {};
+  final Map<String, List<MediaItem>> _moviesByCategory = {};
+  final Map<String, List<MediaItem>> _seriesByCategory = {};
+
   bool _isLoading = false;
 
   CatalogRepository(
@@ -52,18 +57,32 @@ class CatalogRepository extends ChangeNotifier {
         _channels = await _xtreamService.getLiveStreams(config);
         _movies = await _xtreamService.getVodStreams(config);
         _series = await _xtreamService.getSeries(config);
+
+        _indexXtreamCatalog();
       } else if (_authRepo.authType == AuthType.m3u && _authRepo.m3uUrl != null) {
         _channels = await _playlistService.fetchPlaylist(_authRepo.m3uUrl!);
-        // Extract distinct categories from M3U
+        
+        _channelsByCategory.clear();
+        final orderedCategories = <String>[];
         final categoriesSet = <String>{};
+
         for (final ch in _channels) {
-          if (ch.categoryName != null) {
-            categoriesSet.add(ch.categoryName!);
+          final cat = ch.categoryName ?? 'Geral';
+          if (categoriesSet.add(cat)) {
+            orderedCategories.add(cat);
+          }
+          // Index channel under both categoryId and categoryName
+          final catId = ch.categoryId ?? cat;
+          _channelsByCategory.putIfAbsent(catId, () => []).add(ch);
+          if (ch.categoryName != null && ch.categoryName != catId) {
+            _channelsByCategory.putIfAbsent(ch.categoryName!, () => []).add(ch);
           }
         }
-        _liveCategories = categoriesSet
+
+        _liveCategories = orderedCategories
             .map((cat) => {'category_id': cat, 'category_name': cat})
             .toList();
+
         _vodCategories = [];
         _seriesCategories = [];
         _movies = [];
@@ -77,18 +96,48 @@ class CatalogRepository extends ChangeNotifier {
     }
   }
 
+  void _indexXtreamCatalog() {
+    _channelsByCategory.clear();
+    for (final ch in _channels) {
+      final catId = ch.categoryId ?? 'all';
+      _channelsByCategory.putIfAbsent(catId, () => []).add(ch);
+    }
+
+    _moviesByCategory.clear();
+    for (final m in _movies) {
+      final catId = m.categoryId ?? 'all';
+      _moviesByCategory.putIfAbsent(catId, () => []).add(m);
+    }
+
+    _seriesByCategory.clear();
+    for (final s in _series) {
+      final catId = s.categoryId ?? 'all';
+      _seriesByCategory.putIfAbsent(catId, () => []).add(s);
+    }
+  }
+
   Future<List<Channel>> getChannelsByCategory(String? categoryId) async {
     if (categoryId == null || categoryId == 'all') return _channels;
+    if (_channelsByCategory.containsKey(categoryId)) {
+      return _channelsByCategory[categoryId]!;
+    }
+    // Safe fallback if category ID differs
     return _channels.where((c) => c.categoryId == categoryId || c.categoryName == categoryId).toList();
   }
 
   Future<List<MediaItem>> getMoviesByCategory(String? categoryId) async {
     if (categoryId == null || categoryId == 'all') return _movies;
+    if (_moviesByCategory.containsKey(categoryId)) {
+      return _moviesByCategory[categoryId]!;
+    }
     return _movies.where((m) => m.categoryId == categoryId).toList();
   }
 
   Future<List<MediaItem>> getSeriesByCategory(String? categoryId) async {
     if (categoryId == null || categoryId == 'all') return _series;
+    if (_seriesByCategory.containsKey(categoryId)) {
+      return _seriesByCategory[categoryId]!;
+    }
     return _series.where((s) => s.categoryId == categoryId).toList();
   }
 }

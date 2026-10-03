@@ -1,9 +1,24 @@
+import 'dart:convert';
 import '../models/channel.dart';
 
 class M3uParser {
+  // Pre-compiled regular expressions for high-frequency attribute extraction (ETAPA 4B)
+  static final RegExp _tvgIdRegex = RegExp(r'tvg-id="([^"]*)"', caseSensitive: false);
+  static final RegExp _tvgNameRegex = RegExp(r'tvg-name="([^"]*)"', caseSensitive: false);
+  static final RegExp _tvgLogoRegex = RegExp(r'tvg-logo="([^"]*)"', caseSensitive: false);
+  static final RegExp _groupTitleRegex = RegExp(r'group-title="([^"]*)"', caseSensitive: false);
+
+  /// Existing public API: Parses full M3U content string without allocating intermediate List<String>.
   static List<Channel> parse(String content) {
+    if (content.isEmpty) return [];
+    return parseLines(const LineSplitter().bind(Stream.value(content)).cast<String>() != null
+        ? LineSplitter.split(content)
+        : []);
+  }
+
+  /// Line-by-line parser accepting any lazy or eager Iterable<String>.
+  static List<Channel> parseLines(Iterable<String> lines) {
     final List<Channel> channels = [];
-    final lines = content.split('\n');
 
     String? currentName;
     String? currentLogo;
@@ -12,16 +27,16 @@ class M3uParser {
     String? currentCategory;
     String? currentId;
 
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
       if (line.isEmpty) continue;
 
       if (line.startsWith('#EXTINF:')) {
-        // Extract attributes
-        currentTvgId = _extractAttribute(line, 'tvg-id');
-        currentTvgName = _extractAttribute(line, 'tvg-name');
-        currentLogo = _extractAttribute(line, 'tvg-logo');
-        currentCategory = _extractAttribute(line, 'group-title');
+        // Extract attributes using pre-compiled regexes
+        currentTvgId = _extractAttribute(line, _tvgIdRegex);
+        currentTvgName = _extractAttribute(line, _tvgNameRegex);
+        currentLogo = _extractAttribute(line, _tvgLogoRegex);
+        currentCategory = _extractAttribute(line, _groupTitleRegex);
 
         // Extract channel name (after last comma)
         final commaIndex = line.lastIndexOf(',');
@@ -31,7 +46,11 @@ class M3uParser {
           currentName = currentTvgName ?? 'Canal ${channels.length + 1}';
         }
         currentId = currentTvgId ?? 'channel_${channels.length + 1}';
-      } else if (!line.startsWith('#') && (line.startsWith('http://') || line.startsWith('https://') || line.startsWith('rtmp://') || line.startsWith('rtsp://'))) {
+      } else if (!line.startsWith('#') &&
+          (line.startsWith('http://') ||
+              line.startsWith('https://') ||
+              line.startsWith('rtmp://') ||
+              line.startsWith('rtsp://'))) {
         if (currentName != null) {
           channels.add(
             Channel(
@@ -59,9 +78,8 @@ class M3uParser {
     return channels;
   }
 
-  static String? _extractAttribute(String line, String attributeName) {
-    final pattern = RegExp('$attributeName="([^"]*)"', caseSensitive: false);
-    final match = pattern.firstMatch(line);
+  static String? _extractAttribute(String line, RegExp regex) {
+    final match = regex.firstMatch(line);
     if (match != null && match.groupCount >= 1) {
       final val = match.group(1)?.trim();
       return (val != null && val.isNotEmpty) ? val : null;
