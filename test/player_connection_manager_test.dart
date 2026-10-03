@@ -211,8 +211,13 @@ void main() {
 
     test('Teste 9: Buffering não cria retries duplicados', () async {
       final manager = PlayerConnectionManager(
-        baseBackoff: const Duration(milliseconds: 10),
+        baseBackoff: const Duration(milliseconds: 100),
       );
+
+      final statuses = <ConnectionStatus>[];
+      manager.addListener(() {
+        statuses.add(manager.status);
+      });
 
       await manager.connect((gen) async {});
       expect(manager.status, equals(ConnectionStatus.connected));
@@ -222,12 +227,13 @@ void main() {
       manager.onBufferingState(true, timeout: const Duration(milliseconds: 20));
       manager.onBufferingState(true, timeout: const Duration(milliseconds: 20));
 
-      // Wait for buffer timeout
+      // Wait for buffer timeout to trigger reconnection, before backoff completes
       await Future.delayed(const Duration(milliseconds: 50));
 
       // Should enter reconnecting exactly once
       expect(manager.status, equals(ConnectionStatus.reconnecting));
       expect(manager.retryCount, equals(1));
+      expect(statuses.where((s) => s == ConnectionStatus.reconnecting).length, equals(1));
 
       manager.dispose();
     });

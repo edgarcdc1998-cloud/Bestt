@@ -154,7 +154,7 @@ class PlayerConnectionManager {
 
   /// Called by the player when a stream error occurs.
   void onStreamError(String error) {
-    if (_isDisposed || _status == ConnectionStatus.failed) return;
+    if (_isDisposed || _status == ConnectionStatus.failed || _isConnecting) return;
 
     final generation = _currentGeneration;
     _handleFailure(generation, error);

@@ -125,12 +125,14 @@ http://stream.com/c1.m3u8
 
     test('TESTE 1 — Chamada única carrega dados e índices perfeitamente', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
-      await authRepo.loginM3u('http://server.com/listA.m3u');
-
       final httpClient = ControllableFakeHttpClient();
       httpClient.setupUrlResponse('http://server.com/listA.m3u', m3uA);
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
+      await authRepo.loginM3u('http://server.com/listA.m3u');
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -151,11 +153,14 @@ http://stream.com/c1.m3u8
 
     test('TESTE 2 — Segunda chamada vence (A começa, B começa, B termina primeiro, A termina depois)', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -198,11 +203,14 @@ http://stream.com/c1.m3u8
 
     test('TESTE 3 — Primeira chamada termina primeiro, depois segunda termina (catálogo == B)', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -230,12 +238,15 @@ http://stream.com/c1.m3u8
 
     test('TESTE 4 — Três gerações (A, B, C com ordem de conclusão B, A, C -> catálogo == C)', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final completerC = httpClient.setupAsyncUrl('http://server.com/listC.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -272,11 +283,14 @@ http://stream.com/c1.m3u8
 
     test('TESTE 5 — Erro de geração obsoleta não destrói estado de geração mais recente', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -305,10 +319,13 @@ http://stream.com/c1.m3u8
 
     test('TESTE 6 — Erro da geração atual desliga loading e preserva contrato', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -327,11 +344,14 @@ http://stream.com/c1.m3u8
 
     test('TESTE 7 — Loading: término de geração antiga não desliga loading de geração nova ativa', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -363,12 +383,15 @@ http://stream.com/c1.m3u8
 
     test('TESTE 8 — Três gerações com erros e sucessos (B sucesso, A erro, C sucesso -> final C)', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final completerC = httpClient.setupAsyncUrl('http://server.com/listC.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,
@@ -404,11 +427,14 @@ http://stream.com/c1.m3u8
 
     test('TESTE 9 — Geração mais recente mantém canais, categorias e índices atomicamente consistentes', () async {
       final storage = FakeAppStorage();
-      final authRepo = AuthenticationRepository(storage);
       final httpClient = ControllableFakeHttpClient();
       final completerA = httpClient.setupAsyncUrl('http://server.com/listA.m3u');
       final completerB = httpClient.setupAsyncUrl('http://server.com/listB.m3u');
       final playlistService = PlaylistService(httpClient: httpClient);
+      final authRepo = AuthenticationRepository(
+        storage,
+        playlistService: playlistService,
+      );
 
       final catalogRepo = CatalogRepository(
         authRepo,

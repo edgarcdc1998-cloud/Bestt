@@ -198,12 +198,16 @@ http://stream.com/espn.m3u8
       final client = MockStreamHttpClient(byteStream: controller.stream);
       final service = PlaylistService(httpClient: client);
 
-      final future = service.fetchPlaylist('http://playlist.com/error.m3u');
+      final futureExpect = expectLater(
+        service.fetchPlaylist('http://playlist.com/error.m3u'),
+        throwsA(isA<Exception>()),
+      );
+
       controller.add(utf8.encode('#EXTM3U\n#EXTINF:-1,Canal 1\nhttp://stream.com/1.m3u8\n'));
       controller.addError(Exception('Conexão resetada pelo servidor'));
       await controller.close();
 
-      expect(future, throwsA(isA<Exception>()));
+      await futureExpect;
     });
 
     test('13. Preserva rigorosamente a ordem dos canais entregues por streaming', () async {
