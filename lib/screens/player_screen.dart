@@ -243,19 +243,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _isBuffering = true;
       });
 
-      // Resume playback position for movies/series
+      // Resume playback position for movies/series using the active backend.
       if (resumePos != null && !_currentMedia.isLive && resumePos.inSeconds > 0) {
-        Future.delayed(const Duration(milliseconds: 1200), () {
-          if (!_isDisposed &&
-              _controller != null &&
-              _controller!.value.isInitialized &&
-              generation == _connectionManager.currentGeneration) {
-            try {
-              _controller!.seekTo(resumePos);
-            } catch (e) {
-              debugPrint('[PlayerScreen] Error seeking to resume position: $e');
-            }
-          }
+        Future<void>.delayed(const Duration(milliseconds: 1200), () async {
+          if (_isDisposed || generation != _connectionManager.currentGeneration) return;
+          await _seekToSafely(resumePos);
         });
       }
 
@@ -407,25 +399,56 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _startHideTimer();
   }
 
+  Future<bool> _seekToSafely(Duration requested) async {
+    if (_isDisposed || _currentMedia.isLive) return false;
+    final deadline = DateTime.now().add(const Duration(seconds: 60));
+
+    try {
+      while (!_isDisposed && DateTime.now().isBefore(deadline)) {
+        if (_useMedia3) {
+          final controller = _media3Engine?.videoController;
+          if (controller != null && controller.value.isInitialized) {
+            final duration = controller.value.duration;
+            final target = duration > Duration.zero
+                ? (requested < Duration.zero
+                    ? Duration.zero
+                    : (requested > duration ? duration : requested))
+                : (requested < Duration.zero ? Duration.zero : requested);
+            await controller.seekTo(target);
+            return true;
+          }
+        } else {
+          final controller = _controller;
+          if (controller != null && controller.value.isInitialized) {
+            final duration = controller.value.duration;
+            final target = duration > Duration.zero
+                ? (requested < Duration.zero
+                    ? Duration.zero
+                    : (requested > duration ? duration : requested))
+                : (requested < Duration.zero ? Duration.zero : requested);
+            await controller.seekTo(target);
+            return true;
+          }
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      debugPrint('[PlayerScreen] Seek timeout after 60 seconds');
+    } catch (e) {
+      debugPrint('[PlayerScreen] Seek failed: $e');
+    }
+    return false;
+  }
+
   void _seekBy(Duration offset) {
     if (_isDisposed || _currentMedia.isLive) return;
-    try {
-      final target = _position + offset;
-      final clamped = target < Duration.zero ? Duration.zero : (target > _duration ? _duration : target);
-      if (_useMedia3) { _media3Engine?.videoController?.seekTo(clamped); } else { _controller?.seekTo(clamped); }
-    } catch (e) {
-      debugPrint('[PlayerScreen] Error seeking: $e');
-    }
+    final target = _position + offset;
+    _seekToSafely(target);
     _startHideTimer();
   }
 
   void _onSeek(Duration target) {
     if (_isDisposed || _currentMedia.isLive) return;
-    try {
-      if (_useMedia3) { _media3Engine?.videoController?.seekTo(target); } else { _controller?.seekTo(target); }
-    } catch (e) {
-      debugPrint('[PlayerScreen] Error seeking: $e');
-    }
+    _seekToSafely(target);
     _startHideTimer();
   }
 
