@@ -168,3 +168,5 @@ class Media3PlayerEngine implements PlayerEngine {
     }
   }
 }
+
+// PlayerEngine contract implementation is kept backend-local for migration safety.
