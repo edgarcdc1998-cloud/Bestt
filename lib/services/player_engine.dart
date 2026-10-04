@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:video_player/video_player.dart';
 
 enum PlayerBackend {
@@ -5,27 +7,33 @@ enum PlayerBackend {
   media3,
 }
 
-/// Common lifecycle contract for alternative playback engines.
-///
-/// The interface intentionally does not expose UI concerns. This lets the
-/// existing VLC implementation and the Media3 implementation be tested
-/// independently before PlayerScreen is switched to either backend.
+enum PlayerEngineState {
+  idle,
+  initializing,
+  ready,
+  playing,
+  paused,
+  buffering,
+  stopped,
+  failed,
+  disposed,
+}
+
 abstract interface class PlayerEngine {
   PlayerBackend get backend;
-
   VideoPlayerController? get videoController;
+  PlayerEngineState get state;
+  Stream<PlayerEngineState> get stateStream;
+  Duration get position;
+  Duration get duration;
+  bool get isPlaying;
+  Object? get lastError;
 
   Future<void> initialize(String streamUrl);
-
   Future<void> play();
-
   Future<void> pause();
-
   Future<void> stop();
-
   Future<void> seekTo(Duration position);
-
   Future<void> setVolume(double volume);
-
   Future<void> dispose();
 }
