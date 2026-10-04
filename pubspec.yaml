@@ -25,3 +25,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+dependency_overrides:
+  # flutter_chrome_cast 1.4.8 currently resolves permission_handler_android 14.1.0,
+  # whose Kotlin DSL requires a newer toolchain than this project uses.
+  permission_handler_android: 13.0.1
