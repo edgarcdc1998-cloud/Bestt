@@ -67,6 +67,40 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return DateTime.now().difference(startedAt).inMilliseconds;
   }
 
+  String _sanitizeStreamUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (!uri.hasQuery && uri.userInfo.isEmpty) return url;
+      final params = Map<String, String>.from(uri.queryParameters);
+      for (final key in params.keys.toList()) {
+        final lower = key.toLowerCase();
+        if (lower.contains('pass') ||
+            lower.contains('token') ||
+            lower.contains('user') ||
+            lower.contains('auth') ||
+            lower.contains('key') ||
+            lower.contains('secret')) {
+          params[key] = '***';
+        }
+      }
+      return uri
+          .replace(
+            userInfo: uri.userInfo.isNotEmpty ? '***:***' : null,
+            queryParameters: params.isNotEmpty ? params : null,
+          )
+          .toString();
+    } catch (_) {
+      return 'url_redacted';
+    }
+  }
+
+  String _mediaTypeLabel(MediaItem media) {
+    if (media.isLive) return 'LIVE';
+    if (media.isMovie) return 'VOD/MOVIE';
+    if (media.isSeries) return 'SERIES/EPISODE';
+    return media.type.name.toUpperCase();
+  }
+
   Timer? _hideTimer;
 
   @override
@@ -138,13 +172,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       final resumePos = widget.libraryRepository.getResumePosition(_currentMedia.id);
 
+      final streamUrl = _currentMedia.streamUrl;
+      final mediaType = _mediaTypeLabel(_currentMedia);
+      final sanitizedStreamUrl = _sanitizeStreamUrl(streamUrl);
+
+      debugPrint(
+        '[PLAYER_STREAM_DIAGNOSTIC] type=$mediaType '
+        'id=${_currentMedia.id} '
+        'title=${_currentMedia.title} '
+        'url=$sanitizedStreamUrl '
+        'urlLength=${streamUrl.length} '
+        'empty=${streamUrl.isEmpty} '
+        't=${_startupElapsedMs()}ms',
+      );
+
+      if (streamUrl.isEmpty) {
+        debugPrint(
+          '[PLAYER_STREAM_DIAGNOSTIC] ERROR empty stream URL '
+          'type=$mediaType id=${_currentMedia.id}',
+        );
+      }
+
       debugPrint(
         '[PLAYER_STARTUP] creating VLC controller '
         't=${_startupElapsedMs()}ms',
       );
 
       final controller = VlcPlayerController.network(
-        _currentMedia.streamUrl,
+        streamUrl,
         hwAcc: HwAcc.full,
         autoPlay: true,
         options: VlcPlayerOptions(
