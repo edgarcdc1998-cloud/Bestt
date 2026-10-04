@@ -22,6 +22,8 @@ class PlayerConnectionManager {
   int _retryCount = 0;
   bool _isDisposed = false;
   bool _isConnecting = false;
+  bool _isBuffering = false;
+  Duration _bufferTimeout = const Duration(seconds: 10);
 
   Timer? _reconnectTimer;
   Timer? _bufferTimer;
@@ -106,6 +108,7 @@ class PlayerConnectionManager {
     // Prevent concurrent executions for the same generation
     if (_isConnecting) return;
     _isConnecting = true;
+    _isBuffering = false;
 
     try {
       if (_connectCallback != null) {
@@ -118,6 +121,9 @@ class PlayerConnectionManager {
       _isConnecting = false;
       _retryCount = 0;
       _setStatus(ConnectionStatus.connected);
+      if (_isBuffering) {
+        onBufferingState(true, timeout: _bufferTimeout);
+      }
     } catch (e) {
       if (_isDisposed || generation != _currentGeneration) return;
       _isConnecting = false;
@@ -175,14 +181,21 @@ class PlayerConnectionManager {
   void onBufferingState(bool isBuffering, {Duration timeout = const Duration(seconds: 10)}) {
     if (_isDisposed) return;
 
+    _isBuffering = isBuffering;
+    _bufferTimeout = timeout;
+
     if (!isBuffering) {
       _bufferTimer?.cancel();
       _bufferTimer = null;
       return;
     }
 
+    // While connecting, remember the state. A timeout will be scheduled once
+    // the connection callback completes and the manager becomes connected.
+    if (_status == ConnectionStatus.connecting) return;
+
     // If already buffering monitor is active or reconnecting, do not duplicate
-    if (_bufferTimer != null || _status == ConnectionStatus.reconnecting || _status == ConnectionStatus.connecting) {
+    if (_bufferTimer != null || _status == ConnectionStatus.reconnecting) {
       return;
     }
 
@@ -213,6 +226,7 @@ class PlayerConnectionManager {
     _currentGeneration++;
     _cancelTimers();
     _isConnecting = false;
+    _isBuffering = false;
     _setStatus(ConnectionStatus.idle);
   }
 
@@ -222,6 +236,7 @@ class PlayerConnectionManager {
     _currentGeneration++;
     _cancelTimers();
     _isConnecting = false;
+    _isBuffering = false;
     _connectCallback = null;
     _status = ConnectionStatus.disposed;
     _listeners.clear();

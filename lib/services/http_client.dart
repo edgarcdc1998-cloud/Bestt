@@ -7,12 +7,15 @@ class HttpClient {
   final http.Client _client;
   final Duration timeout;
   final String userAgent;
+  final Duration Function(int attempt) _retryDelay;
 
   HttpClient({
     http.Client? client,
     this.timeout = const Duration(seconds: 15),
     this.userAgent = 'BestPlayer/1.0 (Android; IPTV)',
-  }) : _client = client ?? http.Client();
+    Duration Function(int attempt)? retryDelay,
+  })  : _client = client ?? http.Client(),
+        _retryDelay = retryDelay ?? ((attempt) => Duration(milliseconds: 500 * attempt));
 
   Map<String, String> _buildHeaders([Map<String, String>? customHeaders]) {
     final headers = {
@@ -41,13 +44,13 @@ class HttpClient {
         return response;
       } on SocketException {
         if (attempts > maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 500 * attempts));
+        await Future.delayed(_retryDelay(attempts));
       } on TimeoutException {
         if (attempts > maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 500 * attempts));
+        await Future.delayed(_retryDelay(attempts));
       } catch (e) {
         if (attempts > maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 500 * attempts));
+        await Future.delayed(_retryDelay(attempts));
       }
     }
   }
@@ -68,13 +71,13 @@ class HttpClient {
         return response;
       } on SocketException {
         if (attempts > maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 500 * attempts));
+        await Future.delayed(_retryDelay(attempts));
       } on TimeoutException {
         if (attempts > maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 500 * attempts));
+        await Future.delayed(_retryDelay(attempts));
       } catch (e) {
         if (attempts > maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 500 * attempts));
+        await Future.delayed(_retryDelay(attempts));
       }
     }
   }

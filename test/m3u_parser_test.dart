@@ -181,7 +181,7 @@ rtsp://server.com/live4
       const m3u = '''#EXTM3U
 #EXTINF:-1 tvg-id='single1' group-title='Filmes HD' tvg-logo='http://logo.com/1.png',Cinema 1
 http://server.com/cinema1.m3u8
-#EXTINF:-1 tvg-id=unquoted2 group-title=Series,Serie 2
+#EXTINF:-1 tvg-id=unquoted2 group-title=Séries,Série 2
 http://server.com/serie2.m3u8
 ''';
       final channels = M3uParser.parse(m3u);
@@ -192,8 +192,8 @@ http://server.com/serie2.m3u8
       expect(channels[0].name, equals('Cinema 1'));
 
       expect(channels[1].tvgId, equals('unquoted2'));
-      expect(channels[1].categoryName, equals('Series'));
-      expect(channels[1].name, equals('Serie 2'));
+      expect(channels[1].categoryName, equals('Séries'));
+      expect(channels[1].name, equals('Série 2'));
     });
 
     test('15. Suporta diretiva #EXTGRP para categorização', () {
@@ -247,6 +247,23 @@ hls://server.com/stream.m3u8
       expect(channels[1].streamUrl, equals('mms://server.com/live'));
       expect(channels[2].streamUrl, equals('rtmpe://server.com/secure'));
       expect(channels[3].streamUrl, equals('hls://server.com/stream.m3u8'));
+    });
+
+    test('19. Não reutiliza metadados de uma entrada incompleta', () {
+      const m3u = '''#EXTM3U
+#EXTINF:-1 tvg-id="stale" tvg-logo="http://logo.com/stale.png" group-title="Antiga",Entrada incompleta
+#EXTINF:-1,Canal novo
+http://server.com/new.m3u8
+''';
+
+      final channels = M3uParser.parse(m3u);
+
+      expect(channels, hasLength(1));
+      expect(channels.single.name, equals('Canal novo'));
+      expect(channels.single.id, equals('channel_1'));
+      expect(channels.single.tvgId, isNull);
+      expect(channels.single.logoUrl, isNull);
+      expect(channels.single.categoryName, equals('Geral'));
     });
   });
 }

@@ -238,7 +238,24 @@ void main() {
       manager.dispose();
     });
 
-    test('Teste 10: Retry manual durante retry automático não cria concorrência', () async {
+    test('Teste 10: Buffer inicial durante a conexão agenda timeout após conectar', () async {
+      final manager = PlayerConnectionManager(
+        baseBackoff: const Duration(milliseconds: 100),
+      );
+
+      await manager.connect((gen) async {
+        manager.onBufferingState(true, timeout: const Duration(milliseconds: 20));
+      });
+
+      expect(manager.status, equals(ConnectionStatus.connected));
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(manager.status, equals(ConnectionStatus.reconnecting));
+      expect(manager.retryCount, equals(1));
+      manager.dispose();
+    });
+
+    test('Teste 11: Retry manual durante retry automático não cria concorrência', () async {
       final manager = PlayerConnectionManager(
         maxRetries: 3,
         baseBackoff: const Duration(milliseconds: 100),

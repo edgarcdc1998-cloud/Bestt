@@ -190,7 +190,7 @@ class _PlayerGestureDetectorState extends State<PlayerGestureDetector> {
             ),
           ),
 
-        // Volume HUD Center-Right
+        // Centered volume HUD
         if (_showVolumeIndicator)
           Center(
             child: Container(
@@ -230,7 +230,7 @@ class _PlayerGestureDetectorState extends State<PlayerGestureDetector> {
             ),
           ),
 
-        // Brightness HUD Center-Left
+        // Centered brightness HUD
         if (_showBrightnessIndicator)
           Center(
             child: Container(

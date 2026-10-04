@@ -36,6 +36,15 @@ class M3uParser {
       }
 
       if (line.startsWith('#EXTINF:')) {
+        // A new declaration supersedes an unfinished entry. Resetting here
+        // prevents attributes from a malformed previous entry leaking forward.
+        currentName = null;
+        currentLogo = null;
+        currentTvgId = null;
+        currentTvgName = null;
+        currentCategory = null;
+        currentId = null;
+
         final commaIndex = line.lastIndexOf(',');
         final attributesPart = commaIndex != -1 ? line.substring(0, commaIndex) : line;
 
