@@ -9,6 +9,7 @@ import '../repositories/library_repository.dart';
 import '../services/player_connection_manager.dart';
 import '../services/media3_player_engine.dart';
 import '../services/player_manager.dart';
+import '../services/vlc_player_engine.dart';
 import 'player/widgets/player_gesture_detector.dart';
 import 'player/widgets/player_overlay.dart';
 import 'player/widgets/player_quick_channel_drawer.dart';
@@ -38,7 +39,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _currentIndex = 0;
   List<MediaItem> _playlist = [];
 
-  VlcPlayerController? _controller;
+  VlcPlayerEngine? _vlcEngine;
+  VlcPlayerController? get _controller => _vlcEngine?.controller;
   Media3PlayerEngine? _media3Engine;
   late final PlayerManager _playerManager;
   bool _useMedia3 = false;
@@ -227,24 +229,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
           return;
         }
       } else {
-        debugPrint('[PLAYER_STARTUP] creating VLC controller t=${_startupElapsedMs()}ms');
-        final controller = VlcPlayerController.network(
-          streamUrl,
-          hwAcc: HwAcc.full,
-          autoPlay: true,
-          options: VlcPlayerOptions(
-            advanced: VlcAdvancedOptions(['--network-caching=1500','--live-caching=1500']),
-            http: VlcHttpOptions(['--http-reconnect']),
-            rtp: VlcRtpOptions(['--rtsp-tcp']),
-          ),
-        );
-        if (_isDisposed || generation != _connectionManager.currentGeneration) {
-          await controller.stop();
-          await controller.dispose();
+        debugPrint('[PLAYER_STARTUP] creating VLC engine t=' + _startupElapsedMs() + 'ms');
+        try {
+          final engine = await _playerManager.initializeVlc(streamUrl);
+          if (engine is! VlcPlayerEngine) {
+            throw StateError('PlayerManager returned an unexpected VLC engine');
+          }
+          if (_isDisposed || generation != _connectionManager.currentGeneration) {
+            await _playerManager.disposeActiveEngine();
+            return;
+          }
+          _vlcEngine = engine;
+          final controller = engine.controller;
+          if (controller == null) {
+            throw StateError('VLC engine did not expose a controller');
+          }
+          controller.addListener(_onPlayerStateChanged);
+          debugPrint('[PLAYER_STARTUP] VLC engine initialized t=' + _startupElapsedMs() + 'ms');
+        } catch (e) {
+          _vlcEngine = null;
+          await _playerManager.disposeActiveEngine();
+          _connectionManager.onStreamError(e.toString());
           return;
         }
-        _controller = controller;
-        controller.addListener(_onPlayerStateChanged);
       }
 
       _safeSetState(() {
@@ -364,10 +371,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _teardownCurrentController() async {
-    if (_controller != null) {
-      try { _controller!.removeListener(_onPlayerStateChanged); await _controller!.stop(); } catch (_) {}
-      try { await _controller!.dispose(); } catch (_) {}
-      _controller = null;
+    if (_vlcEngine != null) {
+      try { _vlcEngine!.controller?.removeListener(_onPlayerStateChanged); } catch (_) {}
+      _vlcEngine = null;
     }
     if (_media3Engine != null) {
       try { _media3Engine!.videoController?.removeListener(_onMedia3StateChanged); } catch (_) {}
