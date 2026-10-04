@@ -255,6 +255,7 @@ void main() {
         if (attempts == 1) {
           throw Exception('Fail attempt 1');
         }
+        manager.onStreamConnected();
       });
 
       expect(manager.status, equals(ConnectionStatus.reconnecting));
@@ -272,10 +273,6 @@ void main() {
 
       manager.dispose();
     });
-  });
-}
-
-
     test('Teste 11: Erro durante o callback de conexão dispara retry mesmo enquanto conectando', () async {
       final manager = PlayerConnectionManager(
         maxRetries: 1,
@@ -323,7 +320,7 @@ void main() {
       expect(manager.status, equals(ConnectionStatus.connected));
 
       oldCompleter.complete();
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await Future.delayed(const Duration(milliseconds: 20));
 
       expect(manager.currentGeneration, equals(2));
       expect(manager.status, equals(ConnectionStatus.connected));
@@ -331,3 +328,5 @@ void main() {
 
       manager.dispose();
     });
+  });
+}
