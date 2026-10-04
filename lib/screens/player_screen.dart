@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/media_item.dart';
@@ -62,6 +63,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int? _sleepTimerMinutes;
   int? _sleepTimerRemainingSeconds;
   Timer? _sleepCountdownTimer;
+  Timer? _nextEpisodeTimer;
+  int? _nextEpisodeCountdown;
+  bool _isAdvancingNextEpisode = false;
+  bool _autoPlayNextEpisode = true;
 
   // Startup Diagnostic Instrumentation
   DateTime? _startupStartedAt;
@@ -280,6 +285,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (isPlaying) _connectionManager.onStreamConnected();
     _connectionManager.onBufferingState(isBuffering);
     final pos=val.position, dur=val.duration;
+    _updateNextEpisodeState(pos, dur, isPlaying);
     if (!_currentMedia.isLive && pos.inSeconds > 5 && isPlaying) {
       widget.libraryRepository.saveResumePosition(_currentMedia.id, pos);
     }
@@ -334,6 +340,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     _connectionManager.onBufferingState(isBuffering);
 
+    _updateNextEpisodeState(pos, dur, isPlaying);
+
     // Save resume position periodically for VOD
     if (!_currentMedia.isLive && pos.inSeconds > 5 && isPlaying) {
       widget.libraryRepository.saveResumePosition(_currentMedia.id, pos);
@@ -345,6 +353,156 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _position = pos;
       _duration = dur;
     });
+  }
+
+  MediaItem? get _nextEpisode {
+    if (!_currentMedia.isSeries || _playlist.isEmpty) return null;
+    final nextIndex = _currentIndex + 1;
+    if (nextIndex >= _playlist.length) return null;
+    final candidate = _playlist[nextIndex];
+    return candidate.isSeries ? candidate : null;
+  }
+
+  void _cancelNextEpisodeCountdown() {
+    _nextEpisodeTimer?.cancel();
+    _nextEpisodeTimer = null;
+    if (_nextEpisodeCountdown != null) _safeSetState(() => _nextEpisodeCountdown = null);
+  }
+
+  void _playNextEpisode() {
+    final next = _nextEpisode;
+    if (next == null || _isDisposed || _isAdvancingNextEpisode) return;
+    _isAdvancingNextEpisode = true;
+    _nextEpisodeTimer?.cancel();
+    _nextEpisodeTimer = null;
+    _nextEpisodeCountdown = null;
+    _switchToMedia(next);
+    _isAdvancingNextEpisode = false;
+  }
+
+  void _updateNextEpisodeState(Duration position, Duration duration, bool isPlaying) {
+    final next = _nextEpisode;
+    if (!_currentMedia.isSeries || next == null || duration <= Duration.zero) {
+      _cancelNextEpisodeCountdown();
+      return;
+    }
+    final remaining = duration - position;
+    if (remaining <= Duration.zero) {
+      if (_autoPlayNextEpisode) _playNextEpisode();
+      return;
+    }
+    if (isPlaying && remaining <= const Duration(seconds: 10)) {
+      final seconds = remaining.inSeconds.clamp(0, 10);
+      if (_nextEpisodeTimer == null) {
+        _safeSetState(() => _nextEpisodeCountdown = seconds);
+        _nextEpisodeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (_isDisposed || !mounted) { timer.cancel(); return; }
+          final current = _nextEpisodeCountdown;
+          if (current == null || current <= 1) {
+            timer.cancel();
+            _nextEpisodeTimer = null;
+            _safeSetState(() => _nextEpisodeCountdown = 0);
+            if (_autoPlayNextEpisode) _playNextEpisode();
+            return;
+          }
+          _safeSetState(() => _nextEpisodeCountdown = current - 1);
+        });
+      }
+    } else if (remaining > const Duration(seconds: 10)) {
+      _cancelNextEpisodeCountdown();
+    }
+  }
+
+  Future<void> _initializeCast() async {
+    const appId = GoogleCastDiscoveryCriteria.kDefaultApplicationId;
+    final options = GoogleCastOptionsAndroid(
+      appId: appId,
+      stopCastingOnAppTerminated: false,
+    );
+    GoogleCastContext.instance.setSharedInstanceWithOptions(options);
+  }
+
+  Future<void> _showCastPicker() async {
+    if (_isDisposed || !mounted) return;
+    try {
+      await _initializeCast();
+      GoogleCastDiscoveryManager.instance.startDiscovery();
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: const Color(0xFF1E1E1E),
+        builder: (sheetContext) => SafeArea(
+          child: StreamBuilder<List<GoogleCastDevice>>(
+            stream: GoogleCastDiscoveryManager.instance.devicesStream,
+            initialData: const <GoogleCastDevice>[],
+            builder: (context, snapshot) {
+              final devices = snapshot.data ?? const <GoogleCastDevice>[];
+              return SizedBox(
+                height: 320,
+                child: Column(
+                  children: [
+                    const ListTile(
+                      leading: Icon(Icons.cast, color: Colors.white),
+                      title: Text('Transmitir para', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                    const Divider(color: Colors.white24),
+                    if (devices.isEmpty)
+                      const Expanded(child: Center(child: Text('Procurando dispositivos Chromecast...', style: TextStyle(color: Colors.white70))))
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: devices.length,
+                          itemBuilder: (_, index) {
+                            final device = devices[index];
+                            return ListTile(
+                              leading: const Icon(Icons.tv, color: Colors.redAccent),
+                              title: Text(device.friendlyName, style: const TextStyle(color: Colors.white)),
+                              subtitle: Text(device.modelName ?? 'Chromecast', style: const TextStyle(color: Colors.white54)),
+                              onTap: () async {
+                                try {
+                                  await GoogleCastSessionManager.instance.startSessionWithDevice(device);
+                                  final uri = Uri.parse(_currentMedia.streamUrl);
+                                  final path = uri.path.toLowerCase();
+                                  final contentType = path.endsWith('.m3u8') ? 'application/x-mpegURL' : path.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+                                  final info = GoogleCastMediaInformation(
+                                    contentId: _currentMedia.id,
+                                    streamType: _currentMedia.isLive ? CastMediaStreamType.live : CastMediaStreamType.buffered,
+                                    contentUrl: uri,
+                                    contentType: contentType,
+                                    duration: _currentMedia.duration,
+                                    metadata: GoogleCastMovieMediaMetadata(
+                                      title: _currentMedia.title,
+                                      subtitle: _currentMedia.isLive ? 'AO VIVO' : 'Best Player',
+                                      images: _currentMedia.posterUrl == null ? null : [GoogleCastImage(url: Uri.parse(_currentMedia.posterUrl!))],
+                                    ),
+                                  );
+                                  await GoogleCastRemoteMediaClient.instance.loadMedia(
+                                    info,
+                                    autoPlay: true,
+                                    playPosition: _position,
+                                  );
+                                  if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Transmitindo para ' + device.friendlyName)));
+                                } catch (e) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha no Chromecast: ' + e.toString())));
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      GoogleCastDiscoveryManager.instance.stopDiscovery();
+    } catch (e) {
+      GoogleCastDiscoveryManager.instance.stopDiscovery();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não foi possível usar o Chromecast: ' + e.toString())));
+    }
   }
 
   Future<void> _teardownCurrentController() async {
@@ -489,6 +647,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       widget.libraryRepository.saveResumePosition(_currentMedia.id, _position);
     }
 
+    _cancelNextEpisodeCountdown();
     _safeSetState(() {
       _currentMedia = media;
       _currentIndex = _playlist.indexWhere((m) => m.id == media.id);
@@ -649,6 +808,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _hideTimer = null;
     _sleepCountdownTimer?.cancel();
     _sleepCountdownTimer = null;
+    _nextEpisodeTimer?.cancel();
+    _nextEpisodeTimer = null;
 
     // Flush any pending debounced position immediately before disposing
     if (!_currentMedia.isLive && _position.inSeconds > 5) {
@@ -791,6 +952,52 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
               ),
 
+            if (_nextEpisode != null && _isOverlayVisible)
+              Positioned(
+                right: 20,
+                bottom: 78,
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.82),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_nextEpisode!.posterUrl != null)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.network(_nextEpisode!.posterUrl!, width: 64, height: 42, fit: BoxFit.cover),
+                          ),
+                        const SizedBox(width: 10),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 220),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('PRÓXIMO EPISÓDIO', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                              Text(_nextEpisode!.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                              if (_nextEpisodeCountdown != null && _nextEpisodeCountdown! > 0)
+                                Text('Reproduzindo em ' + _nextEpisodeCountdown.toString() + 's', style: const TextStyle(color: Colors.redAccent, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(_autoPlayNextEpisode ? Icons.autorenew : Icons.stop_circle_outlined, color: Colors.white70),
+                          tooltip: _autoPlayNextEpisode ? 'Desativar reprodução automática' : 'Ativar reprodução automática',
+                          onPressed: () {
+                            _safeSetState(() => _autoPlayNextEpisode = !_autoPlayNextEpisode);
+                            if (!_autoPlayNextEpisode) _cancelNextEpisodeCountdown();
+                          },
+                        ),
+                        TextButton(onPressed: _playNextEpisode, child: const Text('PRÓXIMO')),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
             // HUD Overlay
             PlayerOverlay(
               visible: _isOverlayVisible,
@@ -831,6 +1038,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
               onUserInteraction: _toggleOverlay,
               onToggleBackend: _switchBackend,
               backendLabel: _useMedia3 ? 'Media3' : 'VLC',
+            ),
+
+            Positioned(
+              top: 18,
+              right: 18,
+              child: AnimatedOpacity(
+                opacity: _isOverlayVisible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: IgnorePointer(
+                  ignoring: !_isOverlayVisible,
+                  child: IconButton(
+                    icon: const Icon(Icons.cast, color: Colors.white),
+                    tooltip: 'Chromecast',
+                    onPressed: _showCastPicker,
+                  ),
+                ),
+              ),
             ),
 
             // Quick Channel Switcher Drawer
