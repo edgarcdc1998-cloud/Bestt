@@ -234,8 +234,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
         );
         if (_isDisposed || generation != _connectionManager.currentGeneration) {
-        await _teardownCurrentController();
-        return;
+          await controller.stop();
+          await controller.dispose();
+          return;
+        }
+        _controller = controller;
+        controller.addListener(_onPlayerStateChanged);
       }
 
       _safeSetState(() {
