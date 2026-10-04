@@ -128,12 +128,12 @@ class PlayerTopBar extends StatelessWidget {
           ),
           PlayerIconButton(
             icon: Icons.audiotrack,
-            onPressed: onAudioTrack,
+            onPressed: onAudioTrack ?? () {},
             tooltip: 'Trilha de Áudio',
           ),
           PlayerIconButton(
             icon: Icons.subtitles,
-            onPressed: onSubtitles,
+            onPressed: onSubtitles ?? () {},
             tooltip: 'Legendas',
           ),
           PlayerIconButton(
