@@ -168,6 +168,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _switchBackend() async {
     if (_isDisposed) return;
     _safeSetState(() => _useMedia3 = !_useMedia3);
+    _playerManager.startPlaybackSession();
     debugPrint('[PLAYER_AB_TEST] backend=${_useMedia3 ? 'MEDIA3' : 'VLC'}');
     await _connectStream();
   }
@@ -175,6 +176,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _connectStream() async {
     if (_isDisposed) return;
 
+    _playerManager.startPlaybackSession();
     await _connectionManager.connect((generation) async {
       await _teardownCurrentController();
 
@@ -210,51 +212,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
         );
       }
 
-      if (_useMedia3) {
-        debugPrint('[PLAYER_STARTUP] creating Media3 controller t=${_startupElapsedMs()}ms');
-        try {
-          final engine = await _playerManager.initializeMedia3(streamUrl);
-          if (engine is! Media3PlayerEngine) {
-            throw StateError('PlayerManager returned an unexpected Media3 engine');
-          }
+      try {
+        final engine = await _playerManager.initializeWithFallback(streamUrl);
+        if (engine is Media3PlayerEngine) {
+          _useMedia3 = true;
           _media3Engine = engine;
           final controller = engine.videoController!;
           controller.addListener(_onMedia3StateChanged);
           await controller.setVolume(_volume.clamp(0.0, 1.0).toDouble());
           await controller.play();
           debugPrint('[PLAYER_STARTUP] Media3 initialized/playing t=${_startupElapsedMs()}ms');
-        } catch (e) {
-          await _playerManager.disposeActiveEngine();
-          _media3Engine = null;
-          _connectionManager.onStreamError(e.toString());
-          return;
-        }
-      } else {
-        debugPrint('[PLAYER_STARTUP] creating VLC engine t=${_startupElapsedMs()}ms');
-        try {
-          final engine = await _playerManager.initializeVlc(streamUrl);
-          if (engine is! VlcPlayerEngine) {
-            throw StateError('PlayerManager returned an unexpected VLC engine');
-          }
-          if (_isDisposed || generation != _connectionManager.currentGeneration) {
-            await _playerManager.disposeActiveEngine();
-            return;
-          }
+        } else if (engine is VlcPlayerEngine) {
+          _useMedia3 = false;
           _vlcEngine = engine;
           final controller = engine.controller;
-          if (controller == null) {
-            throw StateError('VLC engine did not expose a controller');
-          }
+          if (controller == null) throw StateError('VLC engine did not expose a controller');
           controller.addListener(_onPlayerStateChanged);
           debugPrint('[PLAYER_STARTUP] VLC engine initialized t=${_startupElapsedMs()}ms');
-        } catch (e) {
-          _vlcEngine = null;
-          await _playerManager.disposeActiveEngine();
-          _connectionManager.onStreamError(e.toString());
-          return;
+        } else {
+          throw StateError('PlayerManager returned an unsupported engine');
         }
+      } catch (e) {
+        await _playerManager.disposeActiveEngine();
+        _media3Engine = null;
+        _vlcEngine = null;
+        _connectionManager.onStreamError(e.toString());
+        return;
       }
-
       _safeSetState(() {
         _isBuffering = true;
       });
