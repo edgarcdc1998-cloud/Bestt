@@ -117,7 +117,8 @@ class PlayerConnectionManager {
 
       _isConnecting = false;
       _retryCount = 0;
-      _setStatus(ConnectionStatus.connected);
+      // The attempt itself does not mean playback is connected.
+      // onStreamConnected() is the authoritative transition.
     } catch (e) {
       if (_isDisposed || generation != _currentGeneration) return;
       _isConnecting = false;
@@ -154,7 +155,7 @@ class PlayerConnectionManager {
 
   /// Called by the player when a stream error occurs.
   void onStreamError(String error) {
-    if (_isDisposed || _status == ConnectionStatus.failed || _isConnecting) return;
+    if (_isDisposed || _status == ConnectionStatus.failed) return;
 
     final generation = _currentGeneration;
     _handleFailure(generation, error);
@@ -199,12 +200,15 @@ class PlayerConnectionManager {
   Future<void> retryManual() async {
     if (_isDisposed) return;
 
+    // Manual retry starts a new generation and invalidates any late result.
+    _currentGeneration++;
+    final generation = _currentGeneration;
     _cancelTimers();
     _isConnecting = false;
     _retryCount = 0;
     _setStatus(ConnectionStatus.connecting);
 
-    await _executeConnect(_currentGeneration);
+    await _executeConnect(generation);
   }
 
   /// Cancels current connection and invalidates generation.
