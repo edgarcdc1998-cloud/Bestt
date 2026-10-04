@@ -89,55 +89,116 @@ class _HomeScreenState extends State<HomeScreen> {
     _playMedia(media, playlist: playlist);
   }
 
-  Widget _buildLiveTab() {
-    return FutureBuilder<List<Channel>>(
-      future: widget.catalogRepo.getChannelsByCategory(_selectedCategory),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: Colors.redAccent));
-        }
-        final channels = snapshot.data!;
-        if (channels.isEmpty) {
-          return const Center(child: Text('Nenhum canal encontrado', style: TextStyle(color: Colors.white54)));
-        }
-
-        return ListView.builder(
-          itemCount: channels.length,
-          itemBuilder: (context, index) {
-            final ch = channels[index];
-            final isFav = _libraryRepo.isChannelFavorite(ch.id);
-
-            return ListTile(
-              leading: ch.logoUrl != null
-                  ? Image.network(
-                      ch.logoUrl!,
-                      width: 44,
-                      height: 44,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.tv, color: Colors.white54, size: 36),
-                    )
-                  : const Icon(Icons.tv, color: Colors.white54, size: 36),
-              title: Text(ch.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              subtitle: ch.categoryName != null
-                  ? Text(ch.categoryName!, style: const TextStyle(color: Colors.white54, fontSize: 12))
-                  : null,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+  Widget _buildContinueWatching() {
+    final items = _libraryRepo.continueWatching;
+    if (items.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 205,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final media = items[index];
+          final resume = media.resumePosition ?? Duration.zero;
+          final progress = media.duration != null && media.duration!.inMilliseconds > 0
+              ? (resume.inMilliseconds / media.duration!.inMilliseconds).clamp(0.0, 1.0)
+              : null;
+          return SizedBox(
+            width: 145,
+            child: InkWell(
+              onTap: () => _playMedia(media),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  IconButton(
-                    icon: Icon(isFav ? Icons.star : Icons.star_border, color: isFav ? Colors.amber : Colors.white54),
-                    onPressed: () {
-                      _libraryRepo.toggleChannelFavorite(ch);
-                      setState(() {});
-                    },
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          media.posterUrl != null
+                              ? Image.network(media.posterUrl!, fit: BoxFit.cover)
+                              : const ColoredBox(
+                                  color: Color(0xFF1E1E1E),
+                                  child: Icon(Icons.play_circle_outline, color: Colors.white30, size: 48),
+                                ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 4,
+                              backgroundColor: Colors.white24,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const Icon(Icons.play_circle_fill, color: Colors.redAccent, size: 32),
+                  const SizedBox(height: 6),
+                  Text(media.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                 ],
               ),
-              onTap: () => _playChannel(ch, channelList: channels),
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLiveTab() {
+    final items = _libraryRepo.continueWatching;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (items.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('CONTINUE ASSISTINDO', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, letterSpacing: 0.6)),
+          ),
+          _buildContinueWatching(),
+          const SizedBox(height: 8),
+        ],
+        Expanded(
+          child: FutureBuilder<List<Channel>>(
+            future: widget.catalogRepo.getChannelsByCategory(_selectedCategory),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.redAccent));
+              final channels = snapshot.data!;
+              if (channels.isEmpty) return const Center(child: Text('Nenhum canal encontrado', style: TextStyle(color: Colors.white54)));
+              return ListView.builder(
+                itemCount: channels.length,
+                itemBuilder: (context, index) {
+                  final ch = channels[index];
+                  final isFav = _libraryRepo.isChannelFavorite(ch.id);
+                  return ListTile(
+                    leading: ch.logoUrl != null
+                        ? Image.network(ch.logoUrl!, width: 44, height: 44, errorBuilder: (_, __, ___) => const Icon(Icons.tv, color: Colors.white54, size: 36))
+                        : const Icon(Icons.tv, color: Colors.white54, size: 36),
+                    title: Text(ch.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    subtitle: ch.categoryName != null ? Text(ch.categoryName!, style: const TextStyle(color: Colors.white54, fontSize: 12)) : null,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(isFav ? Icons.star : Icons.star_border, color: isFav ? Colors.amber : Colors.white54),
+                          onPressed: () { _libraryRepo.toggleChannelFavorite(ch); setState(() {}); },
+                        ),
+                        const Icon(Icons.play_circle_fill, color: Colors.redAccent, size: 32),
+                      ],
+                    ),
+                    onTap: () => _playChannel(ch, channelList: channels),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
