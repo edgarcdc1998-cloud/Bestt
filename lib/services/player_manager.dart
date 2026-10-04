@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'media3_player_engine.dart';
+import 'vlc_player_engine.dart';
 import 'player_engine.dart';
 
 /// Coordinates the lifecycle of the currently selected PlayerEngine.
@@ -14,6 +15,25 @@ class PlayerManager {
   PlayerEngine? get activeEngine => _activeEngine;
   PlayerBackend? get activeBackend => _activeEngine?.backend;
   bool get isDisposed => _disposed;
+
+  Future<PlayerEngine> initializeVlc(String streamUrl) async {
+    _ensureUsable();
+    await disposeActiveEngine();
+    final engine = VlcPlayerEngine();
+    try {
+      await engine.initialize(streamUrl);
+      if (_disposed) {
+        await engine.dispose();
+        throw StateError('PlayerManager has been disposed');
+      }
+      _activeEngine = engine;
+      debugPrint('[PlayerManager] VLC engine initialized');
+      return engine;
+    } catch (_) {
+      await engine.dispose();
+      rethrow;
+    }
+  }
 
   Future<PlayerEngine> initializeMedia3(String streamUrl) async {
     _ensureUsable();
