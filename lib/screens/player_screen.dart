@@ -275,7 +275,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       debugPrint('[PLAYER_STARTUP] Media3 initialized t=${_startupElapsedMs()}ms');
     }
     if (val.hasError) {
-      _connectionManager.onStreamError(val.errorDescription);
+      _connectionManager.onStreamError(val.errorDescription ?? 'Erro na reprodução Media3');
       return;
     }
     final isPlaying = val.isPlaying;
