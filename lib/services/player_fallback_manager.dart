@@ -25,7 +25,7 @@ class PlayerFallbackManager {
   PlayerFallbackManager({
     List<PlayerBackend>? backendOrder,
   }) : backendOrder = List.unmodifiable(
-          backendOrder ?? const [PlayerBackend.vlc, PlayerBackend.media3],
+          backendOrder ?? const [PlayerBackend.media3, PlayerBackend.vlc],
         );
 
   int get generation => _generation;
