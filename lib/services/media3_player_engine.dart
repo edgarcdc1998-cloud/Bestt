@@ -1,13 +1,15 @@
+import 'dart:async';
+
 import 'package:video_player/video_player.dart';
+
 import 'player_engine.dart';
 
-/// Media3/ExoPlayer-backed engine through Flutter's Android video_player
-/// implementation.
-///
-/// This is deliberately independent from PlayerScreen in this stage.
-/// VLC remains the active production player until A/B validation is complete.
 class Media3PlayerEngine implements PlayerEngine {
   VideoPlayerController? _controller;
+  final StreamController<PlayerEngineState> _stateController =
+      StreamController<PlayerEngineState>.broadcast();
+  PlayerEngineState _state = PlayerEngineState.idle;
+  Object? _lastError;
   bool _disposed = false;
 
   @override
@@ -17,22 +19,63 @@ class Media3PlayerEngine implements PlayerEngine {
   VideoPlayerController? get videoController => _controller;
 
   @override
+  PlayerEngineState get state => _state;
+
+  @override
+  Stream<PlayerEngineState> get stateStream => _stateController.stream;
+
+  @override
+  Duration get position => _controller?.value.position ?? Duration.zero;
+
+  @override
+  Duration get duration => _controller?.value.duration ?? Duration.zero;
+
+  @override
+  bool get isPlaying => _controller?.value.isPlaying ?? false;
+
+  @override
+  Object? get lastError => _lastError;
+
+  @override
   Future<void> initialize(String streamUrl) async {
     if (_disposed) {
       throw StateError('Media3PlayerEngine has already been disposed');
     }
     if (streamUrl.trim().isEmpty) {
-      throw ArgumentError.value(streamUrl, 'streamUrl', 'Stream URL cannot be empty');
+      throw ArgumentError.value(
+        streamUrl,
+        'streamUrl',
+        'Stream URL cannot be empty',
+      );
     }
 
-    await _controller?.dispose();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(streamUrl));
+    _setState(PlayerEngineState.initializing);
+    _lastError = null;
+
+    final previous = _controller;
+    if (previous != null) {
+      previous.removeListener(_onControllerChanged);
+      await previous.dispose();
+    }
+
+    final controller = VideoPlayerController.networkUrl(Uri.parse(streamUrl));
+    _controller = controller;
+    controller.addListener(_onControllerChanged);
 
     try {
-      await _controller!.initialize();
-    } catch (_) {
-      await _controller?.dispose();
-      _controller = null;
+      await controller.initialize();
+      _onControllerChanged();
+      if (_state == PlayerEngineState.initializing) {
+        _setState(PlayerEngineState.ready);
+      }
+    } catch (error) {
+      _lastError = error;
+      controller.removeListener(_onControllerChanged);
+      await controller.dispose();
+      if (identical(_controller, controller)) {
+        _controller = null;
+      }
+      _setState(PlayerEngineState.failed);
       rethrow;
     }
   }
@@ -41,12 +84,14 @@ class Media3PlayerEngine implements PlayerEngine {
   Future<void> play() async {
     final controller = _requireController();
     await controller.play();
+    _onControllerChanged();
   }
 
   @override
   Future<void> pause() async {
     final controller = _requireController();
     await controller.pause();
+    _onControllerChanged();
   }
 
   @override
@@ -54,12 +99,14 @@ class Media3PlayerEngine implements PlayerEngine {
     final controller = _requireController();
     await controller.pause();
     await controller.seekTo(Duration.zero);
+    _setState(PlayerEngineState.stopped);
   }
 
   @override
   Future<void> seekTo(Duration position) async {
     final controller = _requireController();
     await controller.seekTo(position);
+    _onControllerChanged();
   }
 
   @override
@@ -75,19 +122,49 @@ class Media3PlayerEngine implements PlayerEngine {
 
     final controller = _controller;
     _controller = null;
+    controller?.removeListener(_onControllerChanged);
     await controller?.dispose();
+
+    _setState(PlayerEngineState.disposed);
+    await _stateController.close();
   }
 
   VideoPlayerController _requireController() {
     if (_disposed) {
       throw StateError('Media3PlayerEngine has already been disposed');
     }
-
     final controller = _controller;
     if (controller == null) {
       throw StateError('Media3PlayerEngine is not initialized');
     }
-
     return controller;
+  }
+
+  void _onControllerChanged() {
+    if (_disposed || _controller == null) return;
+
+    final value = _controller!.value;
+    if (value.hasError) {
+      _lastError = value.errorDescription;
+      _setState(PlayerEngineState.failed);
+      return;
+    }
+    if (!value.isInitialized) return;
+
+    if (value.isBuffering) {
+      _setState(PlayerEngineState.buffering);
+    } else if (value.isPlaying) {
+      _setState(PlayerEngineState.playing);
+    } else if (_state != PlayerEngineState.stopped) {
+      _setState(PlayerEngineState.paused);
+    }
+  }
+
+  void _setState(PlayerEngineState next) {
+    if (_state == next) return;
+    _state = next;
+    if (!_stateController.isClosed) {
+      _stateController.add(next);
+    }
   }
 }
