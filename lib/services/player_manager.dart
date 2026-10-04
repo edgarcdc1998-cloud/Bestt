@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'media3_player_engine.dart';
 import 'player_connection_manager.dart';
 import 'player_engine.dart';
+import 'player_fallback_manager.dart';
 import 'vlc_player_engine.dart';
 
 class PlayerManager {
@@ -10,11 +11,20 @@ class PlayerManager {
   PlayerConnectionManager? _connectionManager;
   StreamSubscription<PlayerEngineState>? _engineStateSubscription;
   bool _disposed = false;
+  final PlayerFallbackManager _fallbackManager = PlayerFallbackManager();
+  PlayerBackend? _lastBackend;
 
   PlayerEngine? get activeEngine => _activeEngine;
   PlayerBackend? get activeBackend => _activeEngine?.backend;
   PlayerEngineState? get state => _activeEngine?.state;
   bool get isDisposed => _disposed;
+  PlayerFallbackManager get fallbackManager => _fallbackManager;
+
+  void startPlaybackSession() {
+    _ensureUsable();
+    _fallbackManager.startSession();
+    _lastBackend = null;
+  }
 
   void bindConnectionManager(PlayerConnectionManager manager) {
     _ensureUsable();
@@ -27,11 +37,43 @@ class PlayerManager {
   }
 
   Future<PlayerEngine> initializeVlc(String streamUrl) async =>
-      _initialize(VlcPlayerEngine(), streamUrl, 'VLC');
+      _initializeBackend(PlayerBackend.vlc, streamUrl);
 
   Future<PlayerEngine> initializeMedia3(String streamUrl) async =>
-      _initialize(Media3PlayerEngine(), streamUrl, 'Media3');
+      _initializeBackend(PlayerBackend.media3, streamUrl);
 
+  Future<PlayerEngine> initializeWithFallback(String streamUrl) async {
+    _ensureUsable();
+    final candidates = <PlayerBackend>[];
+    final next = _fallbackManager.nextBackend();
+    if (next != null) candidates.add(next);
+    if (_lastBackend != null && !candidates.contains(_lastBackend)) candidates.add(_lastBackend!);
+    for (final backend in _fallbackManager.backendOrder) {
+      if (!candidates.contains(backend) &&
+          (!_fallbackManager.isAttempted(backend) || _lastBackend == backend)) {
+        candidates.add(backend);
+      }
+    }
+    Object? lastError;
+    for (final backend in candidates) {
+      try {
+        return await _initializeBackend(backend, streamUrl);
+      } catch (error) {
+        lastError = error;
+        debugPrint('[PlayerManager] backend initialization failed: $error');
+      }
+    }
+    throw StateError('Todos os backends de player falharam: $lastError');
+  }
+
+  Future<PlayerEngine> _initializeBackend(PlayerBackend backend, String streamUrl) async {
+    final engine = backend == PlayerBackend.vlc ? VlcPlayerEngine() : Media3PlayerEngine();
+    final label = backend == PlayerBackend.vlc ? 'VLC' : 'Media3';
+    _fallbackManager.markAttempt(backend);
+    final result = await _initialize(engine, streamUrl, label);
+    _lastBackend = backend;
+    return result;
+  }
   Future<PlayerEngine> _initialize(PlayerEngine engine, String streamUrl, String label) async {
     _ensureUsable();
     await disposeActiveEngine();
@@ -115,6 +157,7 @@ class PlayerManager {
     _disposed = true;
     await disposeActiveEngine();
     _connectionManager = null;
+    _fallbackManager.dispose();
   }
 
   PlayerEngine _requireActiveEngine() {
