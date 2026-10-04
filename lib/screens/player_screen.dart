@@ -10,6 +10,7 @@ import '../repositories/library_repository.dart';
 import '../services/player_connection_manager.dart';
 import '../services/media3_player_engine.dart';
 import '../services/player_manager.dart';
+import '../services/player_engine.dart';
 import '../services/vlc_player_engine.dart';
 import 'player/widgets/player_gesture_detector.dart';
 import 'player/widgets/player_overlay.dart';
@@ -44,7 +45,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   VlcPlayerController? get _controller => _vlcEngine?.controller;
   Media3PlayerEngine? _media3Engine;
   late final PlayerManager _playerManager;
-  bool _useMedia3 = false;
+  bool _useMedia3 = true;
   bool _isDisposed = false;
   bool _isOverlayVisible = true;
   bool _isPlaying = false;
@@ -218,7 +219,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       try {
-        final engine = await _playerManager.initializeWithFallback(streamUrl);
+        final engine = await _playerManager.initializeWithFallback(
+          streamUrl,
+          preferredBackend: _useMedia3 ? PlayerBackend.media3 : PlayerBackend.vlc,
+        );
         if (engine is Media3PlayerEngine) {
           _useMedia3 = true;
           _media3Engine = engine;
@@ -633,7 +637,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
 
     try {
-      if (_useMedia3) { /* video_player does not expose playback speed in this API version */ } else { _controller?.setPlaybackSpeed(newSpeed); }
+      if (_useMedia3) {
+        final controller = _media3Engine?.videoController;
+        if (controller != null) {
+          unawaited(
+            controller.setPlaybackSpeed(newSpeed).catchError((error) {
+              debugPrint('[PlayerScreen] Media3 playback speed error: $error');
+            }),
+          );
+        }
+      } else {
+        _controller?.setPlaybackSpeed(newSpeed);
+      }
     } catch (e) {
       debugPrint('[PlayerScreen] Error setting playback speed: $e');
     }
