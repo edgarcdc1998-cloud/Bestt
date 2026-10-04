@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
+import 'package:video_player/video_player.dart';
 
 import 'player_engine.dart';
 
@@ -18,7 +19,7 @@ class VlcPlayerEngine implements PlayerEngine {
   VlcPlayerController? get controller => _controller;
 
   @override
-  dynamic get videoController => null;
+  VideoPlayerController? get videoController => null;
 
   @override
   PlayerEngineState get state => _state;
