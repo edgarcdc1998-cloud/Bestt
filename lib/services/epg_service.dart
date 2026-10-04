@@ -96,7 +96,11 @@ class EpgService {
       );
 
       result.putIfAbsent(channelId, () => []).add(program);
-      result.putIfAbsent(channelId.toLowerCase(), () => []).add(program);
+
+      final lowerChannelId = channelId.toLowerCase();
+      if (lowerChannelId != channelId) {
+        result.putIfAbsent(lowerChannelId, () => []).add(program);
+      }
     }
 
     // Sort programs by startTime
