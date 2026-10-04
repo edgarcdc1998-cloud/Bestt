@@ -28,6 +28,13 @@ class LibraryRepository extends ChangeNotifier {
   List<MediaItem> get watchHistory => _watchHistory;
   Map<String, Duration> get resumePositions => _resumePositions;
 
+  List<MediaItem> get continueWatching {
+    return _watchHistory.where((media) => !media.isLive).map((media) {
+      final resume = _resumePositions[media.id];
+      return resume == null ? media : media.copyWith(resumePosition: resume);
+    }).where((media) => (media.resumePosition?.inSeconds ?? 0) >= 5).toList(growable: false);
+  }
+
   static const String _keyFavChannels = 'fav_channels';
   static const String _keyFavMedia = 'fav_media';
   static const String _keyWatchHistory = 'watch_history';
