@@ -6,8 +6,8 @@ class PlayerTopBar extends StatelessWidget {
   final MediaItem media;
   final VoidCallback onBack;
   final VoidCallback onToggleAspect;
-  final VoidCallback onAudioTrack;
-  final VoidCallback onSubtitles;
+  final VoidCallback? onAudioTrack;
+  final VoidCallback? onSubtitles;
   final VoidCallback onSleepTimer;
   final VoidCallback onLock;
   final VoidCallback? onQuickChannels;
