@@ -234,42 +234,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
         );
         if (_isDisposed || generation != _connectionManager.currentGeneration) {
-          await controller.dispose();
-          return;
-        }
-        _controller = controller;
-        _controller!.addListener(_onPlayerStateChanged);
-        debugPrint('[PLAYER_STARTUP] VLC controller created/listener attached t=${_startupElapsedMs()}ms');
-        try {
-          await _controller!.setPlaybackSpeed(_playbackSpeed);
-          await _controller!.setVolume((_volume * 100).toInt());
-        } catch (_) {}
-      }
-
-      if (_isDisposed || generation != _connectionManager.currentGeneration) {
-        try {
-          await controller.dispose();
-        } catch (_) {}
+        await _teardownCurrentController();
         return;
       }
-
-      _controller = controller;
-      _controller!.addListener(_onPlayerStateChanged);
-
-      debugPrint(
-        '[PLAYER_STARTUP] VLC controller created/listener attached '
-        't=${_startupElapsedMs()}ms',
-      );
 
       _safeSetState(() {
         _isBuffering = true;
       });
-
-      // Apply initial playback speed and volume
-      try {
-        await _controller!.setPlaybackSpeed(_playbackSpeed);
-        await _controller!.setVolume((_volume * 100).toInt());
-      } catch (_) {}
 
       // Resume playback position for movies/series
       if (resumePos != null && !_currentMedia.isLive && resumePos.inSeconds > 0) {
@@ -437,11 +408,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _seekBy(Duration offset) {
-    if (_isDisposed || _controller == null || _currentMedia.isLive) return;
+    if (_isDisposed || _currentMedia.isLive) return;
     try {
       final target = _position + offset;
       final clamped = target < Duration.zero ? Duration.zero : (target > _duration ? _duration : target);
-      _controller!.seekTo(clamped);
+      if (_useMedia3) { _media3Engine?.videoController?.seekTo(clamped); } else { _controller?.seekTo(clamped); }
     } catch (e) {
       debugPrint('[PlayerScreen] Error seeking: $e');
     }
@@ -449,9 +420,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _onSeek(Duration target) {
-    if (_isDisposed || _controller == null || _currentMedia.isLive) return;
+    if (_isDisposed || _currentMedia.isLive) return;
     try {
-      _controller!.seekTo(target);
+      if (_useMedia3) { _media3Engine?.videoController?.seekTo(target); } else { _controller?.seekTo(target); }
     } catch (e) {
       debugPrint('[PlayerScreen] Error seeking: $e');
     }
@@ -470,7 +441,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _togglePlaybackSpeed() {
-    if (_isDisposed || _controller == null || _currentMedia.isLive) return;
+    if (_isDisposed || _currentMedia.isLive) return;
     const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
     final currentIndex = speeds.indexOf(_playbackSpeed);
     final nextIndex = (currentIndex + 1) % speeds.length;
@@ -481,7 +452,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
 
     try {
-      _controller!.setPlaybackSpeed(newSpeed);
+      if (_useMedia3) { /* video_player does not expose playback speed in this API version */ } else { _controller?.setPlaybackSpeed(newSpeed); }
     } catch (e) {
       debugPrint('[PlayerScreen] Error setting playback speed: $e');
     }
