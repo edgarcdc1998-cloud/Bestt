@@ -22,8 +22,8 @@ class PlayerOverlay extends StatelessWidget {
   final VoidCallback? onForward;
   final ValueChanged<Duration> onSeek;
   final VoidCallback onToggleAspect;
-  final VoidCallback onAudioTrack;
-  final VoidCallback onSubtitles;
+  final VoidCallback? onAudioTrack;
+  final VoidCallback? onSubtitles;
   final VoidCallback onSleepTimer;
   final VoidCallback onLock;
   final VoidCallback onUnlock;
@@ -53,8 +53,8 @@ class PlayerOverlay extends StatelessWidget {
     this.onForward,
     required this.onSeek,
     required this.onToggleAspect,
-    required this.onAudioTrack,
-    required this.onSubtitles,
+    this.onAudioTrack,
+    this.onSubtitles,
     required this.onSleepTimer,
     required this.onLock,
     required this.onUnlock,
