@@ -12,6 +12,7 @@ void main() {
       bool connectedCalled = false;
       await manager.connect((gen) async {
         connectedCalled = true;
+        manager.onStreamConnected();
       });
 
       expect(connectedCalled, isTrue);
@@ -34,6 +35,7 @@ void main() {
         if (attempts == 1) {
           throw Exception('Network timeout');
         }
+        manager.onStreamConnected();
       });
 
       expect(attempts, equals(1));
@@ -92,6 +94,7 @@ void main() {
       await Future.delayed(const Duration(milliseconds: 30));
 
       expect(executionCount, equals(1));
+      expect(manager.status, equals(ConnectionStatus.connected));
 
       manager.dispose();
     });
@@ -165,7 +168,9 @@ void main() {
         baseBackoff: const Duration(milliseconds: 10),
       );
 
-      await manager.connect((gen) async {});
+      await manager.connect((gen) async {
+        manager.onStreamConnected();
+      });
       expect(manager.status, equals(ConnectionStatus.connected));
 
       manager.dispose();
@@ -269,3 +274,60 @@ void main() {
     });
   });
 }
+
+
+    test('Teste 11: Erro durante o callback de conexão dispara retry mesmo enquanto conectando', () async {
+      final manager = PlayerConnectionManager(
+        maxRetries: 1,
+        baseBackoff: const Duration(milliseconds: 10),
+      );
+
+      int attempts = 0;
+      await manager.connect((gen) async {
+        attempts++;
+        if (attempts == 1) {
+          manager.onStreamError('ClientConnection closed while receiving data');
+          return;
+        }
+        manager.onStreamConnected();
+      });
+
+      expect(manager.status, equals(ConnectionStatus.reconnecting));
+      await Future.delayed(const Duration(milliseconds: 30));
+      expect(attempts, equals(2));
+      expect(manager.status, equals(ConnectionStatus.connected));
+
+      manager.dispose();
+    });
+
+    test('Teste 12: Retry manual invalida callback antigo e evita concorrência', () async {
+      final manager = PlayerConnectionManager(
+        baseBackoff: const Duration(milliseconds: 10),
+      );
+      final oldCompleter = Completer<void>();
+      int attempts = 0;
+
+      unawaited(manager.connect((gen) async {
+        attempts++;
+        if (gen == 1) {
+          await oldCompleter.future;
+        } else {
+          manager.onStreamConnected();
+        }
+      }));
+
+      await Future<void>.delayed(Duration.zero);
+      await manager.retryManual();
+
+      expect(attempts, equals(2));
+      expect(manager.status, equals(ConnectionStatus.connected));
+
+      oldCompleter.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(manager.currentGeneration, equals(2));
+      expect(manager.status, equals(ConnectionStatus.connected));
+      expect(attempts, equals(2));
+
+      manager.dispose();
+    });
