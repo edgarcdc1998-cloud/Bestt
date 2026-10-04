@@ -125,6 +125,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       baseBackoff: const Duration(seconds: 2),
     );
     _playerManager = PlayerManager();
+    _playerManager.bindConnectionManager(_connectionManager);
     _connectionManager.addListener(_onConnectionStatusChanged);
 
     _enableImmersiveMode();
