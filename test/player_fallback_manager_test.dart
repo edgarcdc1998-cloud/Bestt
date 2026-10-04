@@ -8,9 +8,10 @@ void main() {
       final manager = PlayerFallbackManager();
 
       manager.startSession();
-      manager.markAttempt(PlayerBackend.vlc);
-      expect(manager.nextBackend(current: PlayerBackend.vlc),
-          equals(PlayerBackend.media3));
+      expect(manager.backendOrder.first, equals(PlayerBackend.media3));
+      manager.markAttempt(PlayerBackend.media3);
+      expect(manager.nextBackend(current: PlayerBackend.media3),
+          equals(PlayerBackend.vlc));
 
       manager.startSession();
       expect(manager.attemptedBackends, isEmpty);
@@ -22,11 +23,11 @@ void main() {
       final manager = PlayerFallbackManager();
       manager.startSession();
 
-      manager.markAttempt(PlayerBackend.vlc);
-      expect(manager.nextBackend(current: PlayerBackend.vlc),
-          equals(PlayerBackend.media3));
-
       manager.markAttempt(PlayerBackend.media3);
+      expect(manager.nextBackend(current: PlayerBackend.media3),
+          equals(PlayerBackend.vlc));
+
+      manager.markAttempt(PlayerBackend.vlc);
       expect(manager.nextBackend(current: PlayerBackend.media3), isNull);
       manager.dispose();
     });
