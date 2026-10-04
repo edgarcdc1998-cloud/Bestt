@@ -51,22 +51,20 @@ jobs:
           if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
             echo "Configuring official Release Keystore from repository secrets..."
             echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
-            cat <<EOF > android/key.properties
-            storeFile=release.keystore
-            storePassword=$ANDROID_KEYSTORE_PASSWORD
-            keyAlias=$ANDROID_KEY_ALIAS
-            keyPassword=$ANDROID_KEY_PASSWORD
-            EOF
+            printf '%s\n' \
+              "storeFile=release.keystore" \
+              "storePassword=$ANDROID_KEYSTORE_PASSWORD" \
+              "keyAlias=$ANDROID_KEY_ALIAS" \
+              "keyPassword=$ANDROID_KEY_PASSWORD" > android/key.properties
             echo "Official signing configured successfully."
           else
             echo "::warning title=Using CI Build Key::Repository secrets for signing are not configured yet. Generating a temporary CI keystore for Release APK..."
             keytool -genkey -v -keystore android/app/release.keystore -alias bestplayerci -keyalg RSA -keysize 2048 -validity 10000 -storepass bestplayerpass -keypass bestplayerpass -dname "CN=BestPlayerCI, OU=Mobile, O=BestPlayer, L=SaoPaulo, ST=SP, C=BR"
-            cat <<EOF > android/key.properties
-            storeFile=release.keystore
-            storePassword=bestplayerpass
-            keyAlias=bestplayerci
-            keyPassword=bestplayerpass
-            EOF
+            printf '%s\n' \
+              "storeFile=release.keystore" \
+              "storePassword=bestplayerpass" \
+              "keyAlias=bestplayerci" \
+              "keyPassword=bestplayerpass" > android/key.properties
             echo "CI signing configured successfully."
           fi
 
