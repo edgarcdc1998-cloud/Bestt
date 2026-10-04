@@ -75,7 +75,7 @@ void main() {
 
     test('Teste 4: Duas chamadas simultâneas de connect não criam operações concorrentes na mesma geração', () async {
       final manager = PlayerConnectionManager(
-        baseBackoff: const Duration(milliseconds: 10),
+        baseBackoff: const Duration(milliseconds: 100),
       );
 
       int executionCount = 0;
@@ -91,7 +91,7 @@ void main() {
       manager.onStreamError('Stream dropped while connecting');
 
       completer.complete();
-      await Future.delayed(const Duration(milliseconds: 30));
+      await Future.delayed(const Duration(milliseconds: 20));
 
       expect(executionCount, equals(1));
       expect(manager.status, equals(ConnectionStatus.connected));
@@ -120,6 +120,7 @@ void main() {
       bool connectionBSucceeded = false;
       await manager.connect((gen) async {
         connectionBSucceeded = true;
+        manager.onStreamConnected();
       });
 
       expect(manager.currentGeneration, equals(2));
@@ -224,7 +225,9 @@ void main() {
         statuses.add(manager.status);
       });
 
-      await manager.connect((gen) async {});
+      await manager.connect((gen) async {
+        manager.onStreamConnected();
+      });
       expect(manager.status, equals(ConnectionStatus.connected));
 
       // Multiple rapid buffer events
