@@ -1,0 +1,79 @@
+name: Limpar artefatos antigos - 2026-10-04
+
+on:
+  push:
+    branches: [maintenance/cleanup-artifacts-20261004]
+    paths:
+      - ".github/workflows/cleanup-artifacts-20261004.yml"
+
+permissions:
+  actions: write
+
+concurrency:
+  group: cleanup-artifacts-20261004
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.repository == 'edgarcdc1998-cloud/Bestt'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Remover somente os 26 artefatos antigos identificados
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_TARGETS: '[{"id":11304446050,"run_id":37204064012,"size":122905158},{"id":11303748060,"run_id":37204059852,"size":122905102},{"id":11303917525,"run_id":37204048317,"size":122905093},{"id":11304610757,"run_id":37204040608,"size":122901958},{"id":11304695275,"run_id":37204034020,"size":122902475},{"id":11303896268,"run_id":37202895901,"size":122902575},{"id":11295815195,"run_id":37181505294,"size":122186062},{"id":11295326507,"run_id":37181226780,"size":122184336},{"id":11295461001,"run_id":37181221835,"size":122181419},{"id":11295047113,"run_id":37180375330,"size":122179737},{"id":11295227752,"run_id":37180369617,"size":122179743},{"id":11294318838,"run_id":37180049653,"size":122179735},{"id":11294457321,"run_id":37179289562,"size":122179821},{"id":11294057608,"run_id":37179282973,"size":122178414},{"id":11295210174,"run_id":37178870775,"size":122175442},{"id":11294535557,"run_id":37178268553,"size":122166977},{"id":11294575553,"run_id":37178231240,"size":122166973},{"id":11294280281,"run_id":37177889429,"size":122168702},{"id":11293809521,"run_id":37177885681,"size":122165058},{"id":11292867984,"run_id":37175975806,"size":122165060},{"id":11290338913,"run_id":37168663573,"size":121435378},{"id":11289760940,"run_id":37166430217,"size":121430629},{"id":11285200904,"run_id":37152926975,"size":121245316},{"id":11284841681,"run_id":37152768368,"size":121245320},{"id":11280024664,"run_id":37141477160,"size":121215366},{"id":11262169942,"run_id":37091440992,"size":120970595}]'
+        run: |
+          import json
+          import os
+          import urllib.request
+          import urllib.error
+          
+          repository = os.environ["GITHUB_REPOSITORY"]
+          assert repository == "edgarcdc1998-cloud/Bestt"
+          targets = json.loads(os.environ["ARTIFACT_TARGETS"])
+          preserve_id = 11304291448
+          headers = {
+              "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          deleted = []
+          absent = []
+          for target in targets:
+              artifact_id = target["id"]
+              assert artifact_id != preserve_id
+              url = f"https://api.github.com/repos/{repository}/actions/artifacts/{artifact_id}"
+              request = urllib.request.Request(url, headers=headers)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      artifact = json.load(response)
+              except urllib.error.HTTPError as error:
+                  if error.code == 404:
+                      absent.append(artifact_id)
+                      continue
+                  raise
+              assert artifact["id"] == artifact_id
+              assert artifact["name"] == "app-release"
+              assert artifact["workflow_run"]["id"] == target["run_id"]
+              assert artifact["size_in_bytes"] == target["size"]
+              assert artifact["created_at"] < "2026-10-04T21:42:07Z"
+              request = urllib.request.Request(url, headers=headers, method="DELETE")
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  assert response.status == 204
+              deleted.append(target)
+              print(f'Removido: {artifact_id}; bytes: {target["size"]}', flush=True)
+          
+          result = {
+              "repository": repository,
+              "deleted_count": len(deleted),
+              "deleted_bytes": sum(a["size"] for a in deleted),
+              "already_absent": absent,
+              "preserved_artifact_id": preserve_id,
+          }
+          print(json.dumps(result), flush=True)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## Limpeza pontual de artefatos antigos\n\n")
+              summary.write(f"Removidos: {result['deleted_count']} artefatos, {result['deleted_bytes']} bytes.\n\n")
+              summary.write(f"Preservado: artefato {preserve_id}, da execução mais recente.\n")
