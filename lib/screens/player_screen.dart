@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/media_item.dart';
 import '../repositories/library_repository.dart';
 import '../services/player_connection_manager.dart';
+import '../services/media3_player_engine.dart';
 import 'player/widgets/player_gesture_detector.dart';
 import 'player/widgets/player_overlay.dart';
 import 'player/widgets/player_quick_channel_drawer.dart';
@@ -36,6 +38,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<MediaItem> _playlist = [];
 
   VlcPlayerController? _controller;
+  Media3PlayerEngine? _media3Engine;
+  bool _useMedia3 = false;
   bool _isDisposed = false;
   bool _isOverlayVisible = true;
   bool _isPlaying = false;
@@ -155,6 +159,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _safeSetState(() {});
   }
 
+  Future<void> _switchBackend() async {
+    if (_isDisposed) return;
+    _safeSetState(() => _useMedia3 = !_useMedia3);
+    debugPrint('[PLAYER_AB_TEST] backend=${_useMedia3 ? 'MEDIA3' : 'VLC'}');
+    await _connectStream();
+  }
+
   Future<void> _connectStream() async {
     if (_isDisposed) return;
 
@@ -193,28 +204,47 @@ class _PlayerScreenState extends State<PlayerScreen> {
         );
       }
 
-      debugPrint(
-        '[PLAYER_STARTUP] creating VLC controller '
-        't=${_startupElapsedMs()}ms',
-      );
-
-      final controller = VlcPlayerController.network(
-        streamUrl,
-        hwAcc: HwAcc.full,
-        autoPlay: true,
-        options: VlcPlayerOptions(
-          advanced: VlcAdvancedOptions([
-            '--network-caching=1500',
-            '--live-caching=1500',
-          ]),
-          http: VlcHttpOptions([
-            '--http-reconnect',
-          ]),
-          rtp: VlcRtpOptions([
-            '--rtsp-tcp',
-          ]),
-        ),
-      );
+      if (_useMedia3) {
+        debugPrint('[PLAYER_STARTUP] creating Media3 controller t=${_startupElapsedMs()}ms');
+        final engine = Media3PlayerEngine();
+        try {
+          await engine.initialize(streamUrl);
+          _media3Engine = engine;
+          final controller = engine.videoController!;
+          controller.addListener(_onMedia3StateChanged);
+          await controller.setVolume(_volume.clamp(0.0, 1.0).toDouble());
+          await controller.play();
+          debugPrint('[PLAYER_STARTUP] Media3 initialized/playing t=${_startupElapsedMs()}ms');
+        } catch (e) {
+          await engine.dispose();
+          _media3Engine = null;
+          _connectionManager.onStreamError(e.toString());
+          return;
+        }
+      } else {
+        debugPrint('[PLAYER_STARTUP] creating VLC controller t=${_startupElapsedMs()}ms');
+        final controller = VlcPlayerController.network(
+          streamUrl,
+          hwAcc: HwAcc.full,
+          autoPlay: true,
+          options: VlcPlayerOptions(
+            advanced: VlcAdvancedOptions(['--network-caching=1500','--live-caching=1500']),
+            http: VlcHttpOptions(['--http-reconnect']),
+            rtp: VlcRtpOptions(['--rtsp-tcp']),
+          ),
+        );
+        if (_isDisposed || generation != _connectionManager.currentGeneration) {
+          await controller.dispose();
+          return;
+        }
+        _controller = controller;
+        _controller!.addListener(_onPlayerStateChanged);
+        debugPrint('[PLAYER_STARTUP] VLC controller created/listener attached t=${_startupElapsedMs()}ms');
+        try {
+          await _controller!.setPlaybackSpeed(_playbackSpeed);
+          await _controller!.setVolume((_volume * 100).toInt());
+        } catch (_) {}
+      }
 
       if (_isDisposed || generation != _connectionManager.currentGeneration) {
         try {
@@ -259,6 +289,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       _startHideTimer();
       widget.libraryRepository.addToHistory(_currentMedia);
+    });
+  }
+
+  void _onMedia3StateChanged() {
+    if (_isDisposed || !mounted || _media3Engine?.videoController == null) return;
+    final val = _media3Engine!.videoController!.value;
+    if (!_startupInitializedLogged && val.isInitialized) {
+      _startupInitializedLogged = true;
+      debugPrint('[PLAYER_STARTUP] Media3 initialized t=${_startupElapsedMs()}ms');
+    }
+    if (val.hasError) {
+      _connectionManager.onStreamError(val.errorDescription);
+      return;
+    }
+    final isPlaying = val.isPlaying;
+    final isBuffering = val.isBuffering;
+    if (_lastBufferingState != isBuffering) {
+      _lastBufferingState = isBuffering;
+      debugPrint('[PLAYER_STARTUP] Media3 buffering=$isBuffering t=${_startupElapsedMs()}ms');
+    }
+    if (!_startupPlayingLogged && isPlaying) {
+      _startupPlayingLogged = true;
+      debugPrint('[PLAYER_STARTUP] Media3 playing t=${_startupElapsedMs()}ms');
+    }
+    if (isPlaying) _connectionManager.onStreamConnected();
+    _connectionManager.onBufferingState(isBuffering);
+    final pos=val.position, dur=val.duration;
+    if (!_currentMedia.isLive && pos.inSeconds > 5 && isPlaying) {
+      widget.libraryRepository.saveResumePosition(_currentMedia.id, pos);
+    }
+    _safeSetState(() {
+      _isPlaying=isPlaying; _isBuffering=isBuffering; _position=pos; _duration=dur;
     });
   }
 
@@ -323,20 +385,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _teardownCurrentController() async {
     if (_controller != null) {
-      try {
-        _controller!.removeListener(_onPlayerStateChanged);
-        if (_controller!.value.isPlaying) {
-          await _controller!.stop();
-        }
-      } catch (e) {
-        debugPrint('[PlayerScreen] Error during controller stop/removeListener: $e');
-      }
-      try {
-        await _controller!.dispose();
-      } catch (e) {
-        debugPrint('[PlayerScreen] Error disposing controller: $e');
-      }
+      try { _controller!.removeListener(_onPlayerStateChanged); await _controller!.stop(); } catch (_) {}
+      try { await _controller!.dispose(); } catch (_) {}
       _controller = null;
+    }
+    if (_media3Engine != null) {
+      try { _media3Engine!.videoController?.removeListener(_onMedia3StateChanged); } catch (_) {}
+      try { await _media3Engine!.dispose(); } catch (_) {}
+      _media3Engine = null;
     }
   }
 
@@ -365,7 +421,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _togglePlayPause() {
-    if (_isDisposed || _controller == null) return;
+    if (_isDisposed) return;
+    if (_useMedia3) { final c=_media3Engine?.videoController; if(c==null)return; c.value.isPlaying ? c.pause() : c.play(); _startHideTimer(); return; }
+    if (_controller == null) return;
     try {
       if (_isPlaying) {
         _controller!.pause();
@@ -631,7 +689,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         onVolumeChange: (newVol) {
           _volume = newVol;
           try {
-            _controller?.setVolume((newVol * 100).toInt());
+            if (_useMedia3) { _media3Engine?.videoController?.setVolume(newVol.clamp(0.0,1.0).toDouble()); } else { _controller?.setVolume((newVol * 100).toInt()); }
           } catch (_) {}
         },
         onBrightnessChange: (newBrightness) {
@@ -642,8 +700,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // VLC Video Surface
-            if (_controller != null && !hasError)
+            // Video surface
+            if (_useMedia3 && _media3Engine?.videoController != null && !hasError)
+              Center(child: AspectRatio(aspectRatio: _aspectRatio == '4:3' ? 4/3 : 16/9, child: VideoPlayer(_media3Engine!.videoController!)))
+            else if (_controller != null && !hasError)
               Center(
                 child: VlcPlayer(
                   controller: _controller!,
@@ -754,8 +814,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
               onForward: () => _seekBy(const Duration(seconds: 10)),
               onSeek: _onSeek,
               onToggleAspect: _toggleAspectRatio,
-              onAudioTrack: _showAudioTrackSelector,
-              onSubtitles: _showSubtitleSelector,
+              onAudioTrack: _useMedia3 ? null : _showAudioTrackSelector,
+              onSubtitles: _useMedia3 ? null : _showSubtitleSelector,
               onSleepTimer: _showSleepTimerDialog,
               onLock: () {
                 _safeSetState(() => _isLocked = true);
@@ -774,6 +834,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
               onNext: _playlist.length > 1 ? _playNext : null,
               onToggleSpeed: !_currentMedia.isLive ? _togglePlaybackSpeed : null,
               onUserInteraction: _toggleOverlay,
+              onToggleBackend: _switchBackend,
+              backendLabel: _useMedia3 ? 'Media3' : 'VLC',
             ),
 
             // Quick Channel Switcher Drawer
