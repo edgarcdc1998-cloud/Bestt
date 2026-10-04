@@ -229,7 +229,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           return;
         }
       } else {
-        debugPrint('[PLAYER_STARTUP] creating VLC engine t=' + _startupElapsedMs() + 'ms');
+        debugPrint('[PLAYER_STARTUP] creating VLC engine t=${_startupElapsedMs()}ms');
         try {
           final engine = await _playerManager.initializeVlc(streamUrl);
           if (engine is! VlcPlayerEngine) {
