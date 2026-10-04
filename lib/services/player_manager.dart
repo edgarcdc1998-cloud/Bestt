@@ -42,12 +42,18 @@ class PlayerManager {
   Future<PlayerEngine> initializeMedia3(String streamUrl) async =>
       _initializeBackend(PlayerBackend.media3, streamUrl);
 
-  Future<PlayerEngine> initializeWithFallback(String streamUrl) async {
+  Future<PlayerEngine> initializeWithFallback(
+    String streamUrl, {
+    PlayerBackend? preferredBackend,
+  }) async {
     _ensureUsable();
     final candidates = <PlayerBackend>[];
+    if (preferredBackend != null) candidates.add(preferredBackend);
     final next = _fallbackManager.nextBackend();
-    if (next != null) candidates.add(next);
-    if (_lastBackend != null && !candidates.contains(_lastBackend)) candidates.add(_lastBackend!);
+    if (next != null && !candidates.contains(next)) candidates.add(next);
+    if (_lastBackend != null && !candidates.contains(_lastBackend)) {
+      candidates.add(_lastBackend!);
+    }
     for (final backend in _fallbackManager.backendOrder) {
       if (!candidates.contains(backend) &&
           (!_fallbackManager.isAttempted(backend) || _lastBackend == backend)) {
