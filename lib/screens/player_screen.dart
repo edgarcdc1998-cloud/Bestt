@@ -8,6 +8,7 @@ import '../models/media_item.dart';
 import '../repositories/library_repository.dart';
 import '../services/player_connection_manager.dart';
 import '../services/media3_player_engine.dart';
+import '../services/player_manager.dart';
 import 'player/widgets/player_gesture_detector.dart';
 import 'player/widgets/player_overlay.dart';
 import 'player/widgets/player_quick_channel_drawer.dart';
@@ -39,6 +40,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   VlcPlayerController? _controller;
   Media3PlayerEngine? _media3Engine;
+  late final PlayerManager _playerManager;
   bool _useMedia3 = false;
   bool _isDisposed = false;
   bool _isOverlayVisible = true;
@@ -120,6 +122,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       maxRetries: 3,
       baseBackoff: const Duration(seconds: 2),
     );
+    _playerManager = PlayerManager();
     _connectionManager.addListener(_onConnectionStatusChanged);
 
     _enableImmersiveMode();
@@ -206,9 +209,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (_useMedia3) {
         debugPrint('[PLAYER_STARTUP] creating Media3 controller t=${_startupElapsedMs()}ms');
-        final engine = Media3PlayerEngine();
         try {
-          await engine.initialize(streamUrl);
+          final engine = await _playerManager.initializeMedia3(streamUrl);
+          if (engine is! Media3PlayerEngine) {
+            throw StateError('PlayerManager returned an unexpected Media3 engine');
+          }
           _media3Engine = engine;
           final controller = engine.videoController!;
           controller.addListener(_onMedia3StateChanged);
@@ -216,7 +221,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           await controller.play();
           debugPrint('[PLAYER_STARTUP] Media3 initialized/playing t=${_startupElapsedMs()}ms');
         } catch (e) {
-          await engine.dispose();
+          await _playerManager.disposeActiveEngine();
           _media3Engine = null;
           _connectionManager.onStreamError(e.toString());
           return;
@@ -366,9 +371,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (_media3Engine != null) {
       try { _media3Engine!.videoController?.removeListener(_onMedia3StateChanged); } catch (_) {}
-      try { await _media3Engine!.dispose(); } catch (_) {}
       _media3Engine = null;
     }
+    await _playerManager.disposeActiveEngine();
   }
 
   void _startHideTimer() {
@@ -641,6 +646,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _connectionManager.dispose();
 
     _teardownCurrentController();
+    _playerManager.dispose();
     _restoreSystemUI();
     super.dispose();
   }
