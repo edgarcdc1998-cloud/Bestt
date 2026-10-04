@@ -65,7 +65,7 @@ class Media3PlayerEngine implements PlayerEngine {
   @override
   Future<void> setVolume(double volume) async {
     final controller = _requireController();
-    await controller.setVolume(volume.clamp(0.0, 1.0));
+    await controller.setVolume(volume.clamp(0.0, 1.0).toDouble());
   }
 
   @override
