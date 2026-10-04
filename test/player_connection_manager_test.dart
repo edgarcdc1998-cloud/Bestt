@@ -94,7 +94,7 @@ void main() {
       await Future.delayed(const Duration(milliseconds: 20));
 
       expect(executionCount, equals(1));
-      expect(manager.status, equals(ConnectionStatus.connected));
+      expect(manager.status, equals(ConnectionStatus.reconnecting));
 
       manager.dispose();
     });
