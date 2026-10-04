@@ -32,6 +32,8 @@ class PlayerOverlay extends StatelessWidget {
   final VoidCallback? onNext;
   final VoidCallback? onToggleSpeed;
   final VoidCallback onUserInteraction;
+  final VoidCallback onToggleBackend;
+  final String backendLabel;
 
   const PlayerOverlay({
     super.key,
@@ -61,6 +63,8 @@ class PlayerOverlay extends StatelessWidget {
     this.onNext,
     this.onToggleSpeed,
     required this.onUserInteraction,
+    required this.onToggleBackend,
+    required this.backendLabel,
   });
 
   @override
@@ -120,6 +124,8 @@ class PlayerOverlay extends StatelessWidget {
                       onQuickChannels: onQuickChannels,
                       currentAspect: currentAspect,
                       sleepTimerRemainingSeconds: sleepTimerRemainingSeconds,
+                      onToggleBackend: onToggleBackend,
+                      backendLabel: backendLabel,
                     ),
                   ),
                 ),
