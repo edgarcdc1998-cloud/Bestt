@@ -13,6 +13,8 @@ class PlayerTopBar extends StatelessWidget {
   final VoidCallback? onQuickChannels;
   final String currentAspect;
   final int? sleepTimerRemainingSeconds;
+  final VoidCallback onToggleBackend;
+  final String backendLabel;
 
   const PlayerTopBar({
     super.key,
@@ -26,6 +28,8 @@ class PlayerTopBar extends StatelessWidget {
     this.onQuickChannels,
     required this.currentAspect,
     this.sleepTimerRemainingSeconds,
+    required this.onToggleBackend,
+    required this.backendLabel,
   });
 
   String _formatSleepTimer(int seconds) {
@@ -80,6 +84,11 @@ class PlayerTopBar extends StatelessWidget {
               onPressed: onQuickChannels!,
               tooltip: 'Lista de Canais',
             ),
+          TextButton(
+            onPressed: onToggleBackend,
+            style: TextButton.styleFrom(foregroundColor: Colors.white, backgroundColor: Colors.redAccent.withValues(alpha: 0.7), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+            child: Text(backendLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+          ),
           TextButton(
             onPressed: onToggleAspect,
             style: TextButton.styleFrom(
