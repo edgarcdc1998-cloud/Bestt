@@ -245,7 +245,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             throw StateError('VLC engine did not expose a controller');
           }
           controller.addListener(_onPlayerStateChanged);
-          debugPrint('[PLAYER_STARTUP] VLC engine initialized t=' + _startupElapsedMs() + 'ms');
+          debugPrint('[PLAYER_STARTUP] VLC engine initialized t=${_startupElapsedMs()}ms');
         } catch (e) {
           _vlcEngine = null;
           await _playerManager.disposeActiveEngine();
