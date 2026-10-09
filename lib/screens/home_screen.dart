@@ -186,11 +186,32 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ));
 
+  Widget _catalogErrorBanner() => Material(
+    color: const Color(0xFF382022),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(children: [
+        const Icon(Icons.wifi_off_outlined, color: Colors.white70),
+        const SizedBox(width: 12),
+        Expanded(child: Text(widget.catalogRepo.loadError!,
+          style: const TextStyle(fontSize: 13))),
+        TextButton(
+          onPressed: widget.catalogRepo.isLoading
+              ? null
+              : () => widget.catalogRepo.loadCatalog(),
+          child: const Text('Tentar novamente'),
+        ),
+      ]),
+    ),
+  );
+
   Widget _liveTab() {
     final channels = widget.catalogRepo.channels;
     return CustomScrollView(key: const PageStorageKey('live'), slivers: [
       SliverToBoxAdapter(child: _heading('Ao vivo', '${channels.length} canais no seu catálogo')),
       SliverToBoxAdapter(child: _continueWatching()),
+      if (widget.catalogRepo.loadError != null)
+        SliverToBoxAdapter(child: _catalogErrorBanner()),
       if (widget.catalogRepo.isLoading)
         const SliverToBoxAdapter(child: LinearProgressIndicator()),
       if (channels.isEmpty && !widget.catalogRepo.isLoading)
@@ -210,6 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _heading(series ? 'Séries' : 'Filmes', '${items.length} títulos para descobrir'),
+      if (widget.catalogRepo.loadError != null) _catalogErrorBanner(),
       if (widget.catalogRepo.isLoading) const LinearProgressIndicator(),
       Expanded(child: items.isEmpty
         ? CatalogMessage(icon: series ? Icons.video_library_outlined : Icons.movie_outlined,
