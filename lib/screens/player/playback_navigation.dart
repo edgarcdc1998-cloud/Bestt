@@ -9,7 +9,9 @@ Future<void> openPlaybackRoute(BuildContext context, {
 }) async {
   final route = MaterialPageRoute<void>(builder: builder);
   await Navigator.of(context).push<void>(route);
-  await WidgetsBinding.instance.endOfFrame;
+  // The pop result precedes the reverse animation and PlayerScreen.dispose.
+  // completed waits until the outgoing route has left the overlay.
+  await route.completed;
   if (!context.mounted) return;
   await library.flushResumePositions();
   if (context.mounted) onReturn();

@@ -10,6 +10,8 @@ import 'package:best_player/models/playback_type.dart';
 import 'package:best_player/repositories/authentication_repository.dart';
 import 'package:best_player/repositories/catalog_repository.dart';
 import 'package:best_player/repositories/library_repository.dart';
+import 'package:best_player/screens/home_screen.dart';
+import 'package:best_player/screens/series_detail_screen.dart';
 import 'package:best_player/services/app_storage.dart';
 
 // UI-only fixtures; no demonstration content is shipped in the application.
@@ -122,6 +124,16 @@ void main() {
         await tester.pumpAndSettle();
         await expectLater(find.byKey(previewKey), matchesGoldenFile('../build/previews/${entry.value}.png'));
       }
+      final detailLibrary = LibraryRepository(storage);
+      await detailLibrary.init();
+      addTearDown(detailLibrary.dispose);
+      Navigator.of(tester.element(find.byType(HomeScreen))).push(MaterialPageRoute<void>(
+        builder: (_) => SeriesDetailScreen(authRepo: auth, libraryRepo: detailLibrary,
+          series: const MediaItem(id: 'direct-episode', title: 'Histórias do amanhã',
+            description: 'Uma nova história a cada episódio. Retome de onde parou e acompanhe a sua série.',
+            streamUrl: 'https://example.test/episode.mp4', type: PlaybackType.series))));
+      await tester.pumpAndSettle();
+      await expectLater(find.byKey(previewKey), matchesGoldenFile('../build/previews/series-detail.png'));
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
     });
