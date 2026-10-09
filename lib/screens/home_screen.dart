@@ -10,6 +10,7 @@ import '../widgets/catalog_widgets.dart';
 import 'epg_screen.dart';
 import 'login_screen.dart';
 import 'player_screen.dart';
+import 'player/playback_navigation.dart';
 import 'series_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -76,16 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _playMedia(MediaItem media, {List<MediaItem>? playlist}) async {
-    final library = _libraryRepo!;
-    await Navigator.of(context).push<void>(MaterialPageRoute(
+    await openPlaybackRoute(context,
       builder: (_) => PlayerScreen(media: media, playlist: playlist,
-        libraryRepository: library),
-    ));
-    // Wait for the outgoing route to dispose and flush its final position.
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
-    await library.flushResumePositions();
-    _refresh();
+        libraryRepository: _libraryRepo!),
+      library: _libraryRepo!, onReturn: _refresh);
   }
 
   Future<void> _openMedia(MediaItem media, {List<MediaItem>? playlist}) async {

@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:best_player/app.dart';
@@ -84,6 +86,14 @@ void main() {
   // screenshots, not baselines used to claim regression coverage.
   if (const bool.fromEnvironment('CAPTURE_PREVIEWS')) {
     testWidgets('export actual Flutter screens for visual review', (tester) async {
+      await tester.runAsync(() async {
+        final root = Platform.environment['FLUTTER_ROOT'];
+        if (root == null) throw StateError('FLUTTER_ROOT is required for preview fonts');
+        final font = File('$root/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf');
+        final bytes = await font.readAsBytes();
+        final loader = FontLoader('Roboto')..addFont(Future.value(ByteData.sublistView(bytes)));
+        await loader.load();
+      });
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);

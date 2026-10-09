@@ -7,6 +7,7 @@ import '../repositories/library_repository.dart';
 import '../services/xtream_service.dart';
 import '../widgets/catalog_widgets.dart';
 import 'player_screen.dart';
+import 'player/playback_navigation.dart';
 
 class SeriesDetailScreen extends StatefulWidget {
   final MediaItem series;
@@ -87,12 +88,10 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
   );
 
   Future<void> _play(MediaItem media, {List<MediaItem>? playlist}) async {
-    await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => PlayerScreen(
-      media: media, playlist: playlist, libraryRepository: widget.libraryRepo)));
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
-    await widget.libraryRepo.flushResumePositions();
-    if (mounted) setState(() {});
+    await openPlaybackRoute(context,
+      builder: (_) => PlayerScreen(media: media, playlist: playlist,
+        libraryRepository: widget.libraryRepo),
+      library: widget.libraryRepo, onReturn: () => setState(() {}));
   }
 
   Widget _header() => Padding(padding: const EdgeInsets.all(16), child: Column(
