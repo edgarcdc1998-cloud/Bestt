@@ -27,6 +27,7 @@ class CatalogRepository extends ChangeNotifier {
   final Map<String, List<MediaItem>> _seriesByCategory = {};
 
   bool _isLoading = false;
+  String? _loadError;
 
   CatalogRepository(
     this._authRepo, {
@@ -44,6 +45,7 @@ class CatalogRepository extends ChangeNotifier {
   List<MediaItem> get movies => _movies;
   List<MediaItem> get series => _series;
   bool get isLoading => _isLoading;
+  String? get loadError => _loadError;
 
   Future<void> loadCatalog() async {
     if (!_authRepo.isAuthenticated) return;
@@ -51,6 +53,7 @@ class CatalogRepository extends ChangeNotifier {
     // Invalidate any previous catalog loading generations
     final generation = ++_catalogGeneration;
     _isLoading = true;
+    _loadError = null;
     notifyListeners();
 
     try {
@@ -214,6 +217,7 @@ class CatalogRepository extends ChangeNotifier {
       }
     } catch (e) {
       if (generation == _catalogGeneration) {
+        _loadError = 'Não foi possível atualizar o catálogo. Verifique a conexão e tente novamente.';
         debugPrint('[CatalogRepository] Error loading catalog: $e');
       }
     } finally {
