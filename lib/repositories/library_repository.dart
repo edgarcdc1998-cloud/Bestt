@@ -43,20 +43,20 @@ class LibraryRepository extends ChangeNotifier {
   Future<void> init() async {
     try {
       // P0-3: Defensive loading with per-item resilience
-      _favoriteChannels = _storage.getModelList<Channel>(
+      _favoriteChannels = List<Channel>.of(_storage.getModelList<Channel>(
         _keyFavChannels,
         (json) => Channel.fromJson(json),
-      );
+      ));
 
-      _favoriteMedia = _storage.getModelList<MediaItem>(
+      _favoriteMedia = List<MediaItem>.of(_storage.getModelList<MediaItem>(
         _keyFavMedia,
         (json) => MediaItem.fromJson(json),
-      );
+      ));
 
-      _watchHistory = _storage.getModelList<MediaItem>(
+      _watchHistory = List<MediaItem>.of(_storage.getModelList<MediaItem>(
         _keyWatchHistory,
         (json) => MediaItem.fromJson(json),
-      );
+      ));
 
       final rawResume = _storage.getJsonMap(_keyResumePositions, defaultValue: {});
       _resumePositions.clear();
@@ -150,3 +150,4 @@ class LibraryRepository extends ChangeNotifier {
     super.dispose();
   }
 }
+
