@@ -46,17 +46,17 @@ class LibraryRepository extends ChangeNotifier {
       _favoriteChannels = _storage.getModelList<Channel>(
         _keyFavChannels,
         (json) => Channel.fromJson(json),
-      );
+      ).toList();
 
       _favoriteMedia = _storage.getModelList<MediaItem>(
         _keyFavMedia,
         (json) => MediaItem.fromJson(json),
-      );
+      ).toList();
 
       _watchHistory = _storage.getModelList<MediaItem>(
         _keyWatchHistory,
         (json) => MediaItem.fromJson(json),
-      );
+      ).toList();
 
       final rawResume = _storage.getJsonMap(_keyResumePositions, defaultValue: {});
       _resumePositions.clear();
@@ -150,3 +150,4 @@ class LibraryRepository extends ChangeNotifier {
     super.dispose();
   }
 }
+

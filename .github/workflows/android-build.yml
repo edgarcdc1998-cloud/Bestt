@@ -41,6 +41,16 @@ jobs:
       - name: Run Tests
         run: flutter test
 
+      - name: Capture layout previews
+        run: flutter test --dart-define=CAPTURE_PREVIEWS=true --update-goldens test/catalog_layout_test.dart
+
+      - name: Upload layout previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-layout-previews
+          path: build/previews/*.png
+          if-no-files-found: error
+
       - name: Configure Keystore and Signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -82,3 +92,4 @@ jobs:
           name: app-release
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
