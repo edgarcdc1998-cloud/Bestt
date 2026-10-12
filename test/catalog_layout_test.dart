@@ -196,6 +196,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('EPG channel search filters channels and clears', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    addTearDown(auth.dispose);
+    const channels = [
+      Channel(id: 'c1', name: 'Notícias ao vivo', streamUrl: 'https://example.test/c1'),
+      Channel(id: 'c2', name: 'Esportes em destaque', streamUrl: 'https://example.test/c2'),
+    ];
+    await tester.pumpWidget(MaterialApp(home: EpgScreen(
+      channels: channels, authRepo: auth, libraryRepo: library)));
+    await tester.pumpAndSettle();
+    final search = find.widgetWithText(TextField, 'Buscar canais no guia');
+    await tester.enterText(search, 'Esportes');
+    await tester.pumpAndSettle();
+    expect(find.text('Esportes em destaque'), findsOneWidget);
+    expect(find.text('Notícias ao vivo'), findsOneWidget); // Selected header remains.
+    await tester.enterText(search, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Esportes em destaque'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   // Opt-in visual exports, run with --update-goldens. These are review
   // screenshots, not baselines used to claim regression coverage.
   if (const bool.fromEnvironment('CAPTURE_PREVIEWS')) {
