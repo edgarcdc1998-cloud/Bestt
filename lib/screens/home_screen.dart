@@ -7,8 +7,6 @@ import '../repositories/catalog_repository.dart';
 import '../repositories/library_repository.dart';
 import '../services/app_storage.dart';
 import '../widgets/catalog_widgets.dart';
-import 'epg_screen.dart';
-import 'login_screen.dart';
 import 'player_screen.dart';
 import 'player/playback_navigation.dart';
 import 'series_detail_screen.dart';
