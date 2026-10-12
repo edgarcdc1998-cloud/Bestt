@@ -31,6 +31,8 @@ class _EpgScreenState extends State<EpgScreen> {
   Channel? _selectedChannel;
   List<EpgProgram> _programs = [];
   bool _isLoading = false;
+  String _channelQuery = '';
+  int _selectionRequest = 0;
 
   @override
   void initState() {
@@ -41,21 +43,23 @@ class _EpgScreenState extends State<EpgScreen> {
   }
 
   Future<void> _selectChannel(Channel channel) async {
+    final request = ++_selectionRequest;
     setState(() {
       _selectedChannel = channel;
       _isLoading = true;
+      _programs = [];
     });
 
     if (widget.authRepo.xtreamConfig != null && channel.streamId != null) {
       final list = await _epgService.getShortEpg(widget.authRepo.xtreamConfig!, channel.streamId!);
-      if (mounted) {
+      if (mounted && request == _selectionRequest) {
         setState(() {
           _programs = list;
           _isLoading = false;
         });
       }
     } else {
-      if (mounted) {
+      if (mounted && request == _selectionRequest) {
         setState(() {
           _programs = [];
           _isLoading = false;
@@ -90,6 +94,8 @@ class _EpgScreenState extends State<EpgScreen> {
   Widget build(BuildContext context) {
     final selected = _selectedChannel;
     final timeFmt = DateFormat('HH:mm');
+    final visibleChannels = widget.channels.where((channel) =>
+      channel.name.toLowerCase().contains(_channelQuery.trim().toLowerCase())).toList();
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
@@ -105,10 +111,30 @@ class _EpgScreenState extends State<EpgScreen> {
             child: Text('Canais', style: TextStyle(
               fontSize: 20, fontWeight: FontWeight.w800)),
           ),
+          if (widget.channels.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Buscar canais no guia',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none)),
+                onChanged: (value) => setState(() => _channelQuery = value),
+              ),
+            ),
           if (widget.channels.isEmpty)
             const Padding(
               padding: EdgeInsets.all(20),
               child: Text('Nenhum canal disponível',
+                style: TextStyle(color: Colors.white60)),
+            )
+          else if (visibleChannels.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('Nenhum canal encontrado',
                 style: TextStyle(color: Colors.white60)),
             )
           else
@@ -117,10 +143,10 @@ class _EpgScreenState extends State<EpgScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: widget.channels.length,
+                itemCount: visibleChannels.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
-                  final channel = widget.channels[index];
+                  final channel = visibleChannels[index];
                   final active = selected?.id == channel.id;
                   return SizedBox(
                     width: 180,
