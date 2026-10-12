@@ -357,8 +357,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final channels = _libraryRepo!.favoriteChannels;
     final media = _libraryRepo!.favoriteMedia;
     return CustomScrollView(key: const PageStorageKey('favorites'), slivers: [
-      SliverToBoxAdapter(child: _heading('Favoritos', 'Seu conteúdo sempre por perto')),
-      if (channels.isEmpty && media.isEmpty)
+      SliverToBoxAdapter(child: _heading('Biblioteca', 'Seus favoritos e conteúdos para continuar')),
+      SliverToBoxAdapter(child: _continueWatching()),
+      if (channels.isNotEmpty || media.isNotEmpty)
+        const SliverToBoxAdapter(child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: Text('Minha lista', style: TextStyle(fontSize: 19,
+            fontWeight: FontWeight.w800)))),
+      if (channels.isEmpty && media.isEmpty && _libraryRepo!.continueWatching.isEmpty)
         const SliverFillRemaining(hasScrollBody: false, child: CatalogMessage(
           icon: Icons.star_outline_rounded, title: 'Sua lista começa aqui',
           message: 'Toque na estrela de um canal ou conteúdo para encontrá-lo aqui.')),
@@ -422,7 +428,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(icon: Icon(Icons.live_tv_outlined), selectedIcon: Icon(Icons.live_tv), label: 'Ao vivo'),
           NavigationDestination(icon: Icon(Icons.movie_outlined), selectedIcon: Icon(Icons.movie), label: 'Filmes'),
           NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'Séries'),
-          NavigationDestination(icon: Icon(Icons.star_outline_rounded), selectedIcon: Icon(Icons.star_rounded), label: 'Favoritos'),
+          NavigationDestination(icon: Icon(Icons.bookmark_border_rounded), selectedIcon: Icon(Icons.bookmark_rounded), label: 'Biblioteca'),
         ],
       ),
     );
