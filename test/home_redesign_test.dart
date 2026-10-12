@@ -62,7 +62,9 @@ void main() {
     addTearDown(catalog.dispose);
     await tester.pumpWidget(MaterialApp(home: HomeScreen(authRepo: auth, catalogRepo: catalog)));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('EPG'));
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guia de programação (EPG)'));
     await tester.pumpAndSettle();
     final epg = tester.widget<EpgScreen>(find.byType(EpgScreen));
     final library = epg.libraryRepo;
