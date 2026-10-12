@@ -271,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           icon: const Icon(Icons.play_arrow_rounded),
                           label: const Text('Assistir agora')),
                       ])),
-                ])))),
+                ]))),
           )),
         SliverToBoxAdapter(child: _continueWatching()),
         SliverToBoxAdapter(child: _homeRail('Filmes em destaque', movies)),
