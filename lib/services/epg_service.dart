@@ -147,6 +147,91 @@ class EpgService {
     return {};
   }
 
+  /// Xtream's short EPG may encode titles and descriptions in base64.
+  /// Leave provider text unchanged when it is not valid base64 UTF-8.
+  static String decodeShortEpgText(String value) {
+    final text = value.trim();
+    if (text.isEmpty || text.length % 4 != 0 ||
+        !RegExp(r'^[A-Za-z0-9+/]+={0,2}
+    final cacheKey = streamId.toString();
+    if (_epgCache.containsKey(cacheKey) && _epgCache[cacheKey]!.isNotEmpty) {
+      return _epgCache[cacheKey]!;
+    }
+
+    try {
+      final uri = Uri.parse(config.shortEpgUrl(streamId));
+      final data = await _httpClient.getJson(uri);
+      if (data is Map && data['epg_listings'] is List) {
+        final listings = data['epg_listings'] as List;
+        final programs = listings.whereType<Map>().map((item) {
+          final map = Map<String, dynamic>.from(item);
+          return EpgProgram(
+            id: map['id']?.toString() ?? '',
+            channelId: streamId.toString(),
+            title: decodeShortEpgText(map['title']?.toString() ?? 'Sem Título'),
+            description: (map['descr'] ?? map['description']) == null ? null
+              : decodeShortEpgText((map['descr'] ?? map['description']).toString()),
+            startTime: DateTime.tryParse(map['start'] as String? ?? '') ?? DateTime.now(),
+            endTime: DateTime.tryParse(map['end'] as String? ?? '') ?? DateTime.now(),
+          );
+        }).toList();
+
+        _epgCache[cacheKey] = programs;
+        return programs;
+      }
+    } catch (_) {
+      // Return cached or empty on error
+    }
+    return _epgCache[cacheKey] ?? [];
+  }
+
+  List<EpgProgram> getProgramsForChannel(String? channelId) {
+    if (channelId == null || channelId.isEmpty) return [];
+    return _epgCache[channelId] ?? _epgCache[channelId.toLowerCase()] ?? [];
+  }
+
+  EpgProgram? getCurrentProgram(String? channelId) {
+    if (channelId == null || channelId.isEmpty) return null;
+    final list = _epgCache[channelId] ?? _epgCache[channelId.toLowerCase()];
+    if (list == null || list.isEmpty) return null;
+    final now = DateTime.now();
+    for (final prog in list) {
+      if (now.isAfter(prog.startTime) && now.isBefore(prog.endTime)) {
+        return prog;
+      }
+    }
+    return null;
+  }
+
+  EpgProgram? getNextProgram(String? channelId) {
+    if (channelId == null || channelId.isEmpty) return null;
+    final list = _epgCache[channelId] ?? _epgCache[channelId.toLowerCase()];
+    if (list == null || list.isEmpty) return null;
+    final now = DateTime.now();
+    for (final prog in list) {
+      if (prog.startTime.isAfter(now)) {
+        return prog;
+      }
+    }
+    return null;
+  }
+
+  void clearCache() {
+    _epgCache.clear();
+  }
+}
+).hasMatch(text)) return value;
+    try {
+      final decoded = utf8.decode(base64.decode(text));
+      if (decoded.isEmpty || decoded.runes.any((r) => r < 32 && r != 10 && r != 13 && r != 9)) {
+        return value;
+      }
+      return decoded;
+    } on FormatException {
+      return value;
+    }
+  }
+
   Future<List<EpgProgram>> getShortEpg(XtreamConfig config, int streamId) async {
     final cacheKey = streamId.toString();
     if (_epgCache.containsKey(cacheKey) && _epgCache[cacheKey]!.isNotEmpty) {
