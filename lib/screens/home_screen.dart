@@ -409,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context: context,
               showDragHandle: true,
               builder: (sheetContext) => SafeArea(
-                child: Padding(
+                child: SingleChildScrollView(child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                   child: Column(mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                ),
+                )),
               ),
             ),
           ),
