@@ -401,19 +401,59 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('BEST PLAYER', style: TextStyle(fontSize: 18,
           fontWeight: FontWeight.w800, letterSpacing: 1.1)),
         actions: [
-          IconButton(icon: const Icon(Icons.view_timeline_outlined), tooltip: 'EPG',
-            onPressed: () async {
-              await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => EpgScreen(
-                channels: widget.catalogRepo.channels, authRepo: widget.authRepo,
-                libraryRepo: _libraryRepo!)));
-              _refresh();
-            }),
-          IconButton(icon: const Icon(Icons.logout), tooltip: 'Sair', onPressed: () async {
-            await widget.authRepo.logout();
-            if (!context.mounted) return;
-            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => LoginScreen(
-              authRepo: widget.authRepo, catalogRepo: widget.catalogRepo)));
-          }),
+          IconButton(
+            tooltip: 'Configurações',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              showDragHandle: true,
+              builder: (sheetContext) => SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  child: Column(mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Configurações', style: TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 12),
+                      const ListTile(
+                        leading: Icon(Icons.dark_mode_outlined),
+                        title: Text('Aparência'),
+                        subtitle: Text('Tema escuro do Best Android'),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.view_timeline_outlined),
+                        title: const Text('Guia de programação (EPG)'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          Navigator.of(sheetContext).pop();
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute(builder: (_) => EpgScreen(
+                              channels: widget.catalogRepo.channels,
+                              authRepo: widget.authRepo,
+                              libraryRepo: _libraryRepo!)));
+                          _refresh();
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.logout),
+                        title: const Text('Sair da conta'),
+                        onTap: () async {
+                          Navigator.of(sheetContext).pop();
+                          await widget.authRepo.logout();
+                          if (!context.mounted) return;
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(builder: (_) => LoginScreen(
+                              authRepo: widget.authRepo,
+                              catalogRepo: widget.catalogRepo)));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       body: SafeArea(top: false, child: IndexedStack(index: _currentNavIndex, children: [
