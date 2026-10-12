@@ -351,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }),
         )),
       if (categories.isNotEmpty)
-        SizedBox(height: 48, child: ListView(
+        SizedBox(height: 64, child: ListView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           children: [
