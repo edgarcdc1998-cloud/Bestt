@@ -140,6 +140,32 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('movie search filters titles and clearing restores catalog', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Filmes')));
+    await tester.pumpAndSettle();
+    final search = find.widgetWithText(TextField, 'Buscar filmes');
+    await tester.enterText(search, 'montanhas');
+    await tester.pumpAndSettle();
+    expect(find.text('Entre montanhas'), findsOneWidget);
+    expect(find.text('Noite na cidade'), findsNothing);
+    await tester.enterText(search, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Noite na cidade'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   // Opt-in visual exports, run with --update-goldens. These are review
   // screenshots, not baselines used to claim regression coverage.
   if (const bool.fromEnvironment('CAPTURE_PREVIEWS')) {
