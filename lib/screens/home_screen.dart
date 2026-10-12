@@ -337,7 +337,14 @@ class _HomeScreenState extends State<HomeScreen> {
       item.title.toLowerCase().contains(query.toLowerCase()) &&
       (activeCategory == null || item.categoryName?.trim() == activeCategory)).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _heading(series ? 'Séries' : 'Filmes', '${items.length} títulos para descobrir'),
+      if (MediaQuery.sizeOf(context).height < 450)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Text(series ? 'Séries' : 'Filmes',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        )
+      else
+        _heading(series ? 'Séries' : 'Filmes', '${items.length} títulos para descobrir'),
       Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: TextField(
           decoration: InputDecoration(
