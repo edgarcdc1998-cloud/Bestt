@@ -74,7 +74,7 @@ void main() {
       addTearDown(catalog.dispose);
       await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
       await tester.pumpAndSettle();
-      for (final label in ['Ao vivo', 'Filmes', 'Séries', 'Favoritos']) {
+      for (final label in ['Início', 'Ao vivo', 'Filmes', 'Séries', 'Biblioteca']) {
         await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text(label)));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$label must fit $size');
@@ -118,7 +118,7 @@ void main() {
       await tester.pumpWidget(RepaintBoundary(key: previewKey,
         child: BestPlayerApp(authRepo: auth, catalogRepo: catalog)));
       await tester.pumpAndSettle();
-      final tabs = {'Ao vivo': 'live', 'Filmes': 'movies', 'Séries': 'series', 'Favoritos': 'favorites'};
+      final tabs = {'Início': 'home', 'Ao vivo': 'live', 'Filmes': 'movies', 'Séries': 'series', 'Biblioteca': 'favorites'};
       for (final entry in tabs.entries) {
         await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text(entry.key)));
         await tester.pumpAndSettle();
