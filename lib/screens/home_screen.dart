@@ -12,6 +12,7 @@ import 'login_screen.dart';
 import 'player_screen.dart';
 import 'player/playback_navigation.dart';
 import 'series_detail_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final AuthenticationRepository authRepo;
@@ -448,55 +449,12 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: 'Configurações',
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              showDragHandle: true,
-              builder: (sheetContext) => SafeArea(
-                child: SingleChildScrollView(child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                  child: Column(mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Configurações', style: TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 12),
-                      const ListTile(
-                        leading: Icon(Icons.dark_mode_outlined),
-                        title: Text('Aparência'),
-                        subtitle: Text('Tema escuro do Best Android'),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.view_timeline_outlined),
-                        title: const Text('Guia de programação (EPG)'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () async {
-                          Navigator.of(sheetContext).pop();
-                          await Navigator.of(context).push<void>(
-                            MaterialPageRoute(builder: (_) => EpgScreen(
-                              channels: widget.catalogRepo.channels,
-                              authRepo: widget.authRepo,
-                              libraryRepo: _libraryRepo!)));
-                          _refresh();
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.logout),
-                        title: const Text('Sair da conta'),
-                        onTap: () async {
-                          Navigator.of(sheetContext).pop();
-                          await widget.authRepo.logout();
-                          if (!context.mounted) return;
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => LoginScreen(
-                              authRepo: widget.authRepo,
-                              catalogRepo: widget.catalogRepo)));
-                        },
-                      ),
-                    ],
-                  ),
-                )),
-              ),
-            ),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => SettingsScreen(
+                authRepo: widget.authRepo,
+                catalogRepo: widget.catalogRepo,
+                libraryRepo: _libraryRepo!))),
+
           ),
         ],
       ),
