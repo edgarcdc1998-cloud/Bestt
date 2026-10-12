@@ -9,6 +9,7 @@ import 'package:best_player/repositories/library_repository.dart';
 import 'package:best_player/screens/epg_screen.dart';
 import 'package:best_player/screens/home_screen.dart';
 import 'package:best_player/screens/series_detail_screen.dart';
+import 'package:best_player/screens/settings_screen.dart';
 import 'package:best_player/services/app_storage.dart';
 
 void main() {
@@ -55,6 +56,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Tentar novamente'), findsOneWidget);
     expect(find.text('Nenhum episódio encontrado'), findsNothing);
+  });
+
+  testWidgets('settings lists six modules on a narrow Android viewport', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(MaterialApp(home: HomeScreen(
+      authRepo: auth, catalogRepo: catalog)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.text('Reprodução e player'), findsOneWidget);
+    expect(find.text('Catálogo IPTV'), findsOneWidget);
+    expect(find.text('Aparência'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Dados e privacidade'), 100,
+      scrollable: find.byType(Scrollable).last);
+    expect(find.text('Dados e privacidade'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('home reacts to watch history recorded through its shared library', (tester) async {
