@@ -26,14 +26,14 @@ class PreviewCatalog extends CatalogRepository {
   ];
   @override
   List<MediaItem> get movies => const [
-    MediaItem(id: 'm1', title: 'Uma viagem além do horizonte', streamUrl: 'https://example.test/movie', type: PlaybackType.movie),
-    MediaItem(id: 'm2', title: 'Noite na cidade', streamUrl: 'https://example.test/movie2', type: PlaybackType.movie),
+    MediaItem(id: 'm1', title: 'Uma viagem além do horizonte', streamUrl: 'https://example.test/movie', type: PlaybackType.movie, categoryName: 'Terror'),
+    MediaItem(id: 'm2', title: 'Noite na cidade', streamUrl: 'https://example.test/movie2', type: PlaybackType.movie, categoryName: 'Drama'),
     MediaItem(id: 'm3', title: 'Entre montanhas', streamUrl: 'https://example.test/movie3', type: PlaybackType.movie),
     MediaItem(id: 'm4', title: 'Memórias de um verão', streamUrl: 'https://example.test/movie4', type: PlaybackType.movie),
   ];
   @override
   List<MediaItem> get series => const [
-    MediaItem(id: 's1', title: 'Histórias do amanhã', streamUrl: '', seriesId: '1', type: PlaybackType.series),
+    MediaItem(id: 's1', title: 'Histórias do amanhã', streamUrl: '', seriesId: '1', type: PlaybackType.series, categoryName: 'Drama'),
     MediaItem(id: 's2', title: 'O último farol', streamUrl: '', seriesId: '2', type: PlaybackType.series),
   ];
 }
@@ -220,6 +220,29 @@ void main() {
     await tester.enterText(search, '');
     await tester.pumpAndSettle();
     expect(find.text('Esportes em destaque'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('category chips filter movies without replacing search', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Filmes')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Terror'));
+    await tester.pumpAndSettle();
+    expect(find.text('Uma viagem além do horizonte'), findsOneWidget);
+    expect(find.text('Noite na cidade'), findsNothing);
+    await tester.tap(find.text('Todos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Noite na cidade'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
