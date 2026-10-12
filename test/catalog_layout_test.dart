@@ -37,6 +37,16 @@ class PreviewCatalog extends CatalogRepository {
   ];
 }
 
+class EmptyPreviewCatalog extends CatalogRepository {
+  EmptyPreviewCatalog(super.auth);
+  @override
+  List<Channel> get channels => const [];
+  @override
+  List<MediaItem> get movies => const [];
+  @override
+  List<MediaItem> get series => const [];
+}
+
 void main() {
   test('first favorite and history insert work with empty preferences', () async {
     SharedPreferences.setMockInitialValues({});
@@ -83,6 +93,26 @@ void main() {
       await tester.pumpAndSettle();
     });
   }
+
+  testWidgets('empty catalog keeps Home, TV ao vivo and Biblioteca usable', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = EmptyPreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    for (final label in ['Início', 'Ao vivo', 'Biblioteca']) {
+      await tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text(label)));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '$label must show its empty state');
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
 
   // Opt-in visual exports, run with --update-goldens. These are review
   // screenshots, not baselines used to claim regression coverage.
