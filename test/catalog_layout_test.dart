@@ -114,6 +114,32 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('search filters live channels and restores the full list', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Ao vivo')));
+    await tester.pumpAndSettle();
+    final search = find.widgetWithText(TextField, 'Buscar canais');
+    await tester.enterText(search, 'Esportes');
+    await tester.pumpAndSettle();
+    expect(find.text('Esportes em destaque'), findsOneWidget);
+    expect(find.text('Notícias ao vivo'), findsNothing);
+    await tester.enterText(search, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Notícias ao vivo'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   // Opt-in visual exports, run with --update-goldens. These are review
   // screenshots, not baselines used to claim regression coverage.
   if (const bool.fromEnvironment('CAPTURE_PREVIEWS')) {
