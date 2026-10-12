@@ -205,6 +205,85 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   );
 
+
+  // Curated sections use the existing provider catalog, never demo titles.
+  Widget _homeRail(String title, List<MediaItem> items) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+        child: Text(title, style: const TextStyle(
+          fontSize: 19, fontWeight: FontWeight.w800)),
+      ),
+      SizedBox(height: 226, child: ListView.separated(
+        key: PageStorageKey('home-rail-$title'),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length > 12 ? 12 : items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, index) {
+          final item = items[index];
+          return SizedBox(width: 130, child: MediaPosterCard(
+            media: item, onTap: () => _openMedia(item, playlist: items)));
+        },
+      )),
+    ]);
+  }
+
+  Widget _homeTab() {
+    final movies = widget.catalogRepo.movies;
+    final series = widget.catalogRepo.series;
+    final featured = movies.isNotEmpty ? movies.first
+        : (series.isNotEmpty ? series.first : null);
+    return CustomScrollView(
+      key: const PageStorageKey('home'),
+      slivers: [
+        if (widget.catalogRepo.loadError != null)
+          SliverToBoxAdapter(child: _catalogErrorBanner()),
+        if (widget.catalogRepo.isLoading)
+          const SliverToBoxAdapter(child: LinearProgressIndicator()),
+        if (featured != null)
+          SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: ClipRRect(borderRadius: BorderRadius.circular(18),
+              child: SizedBox(height: 252, child: Stack(
+                fit: StackFit.expand, children: [
+                  CatalogArtwork(url: featured.backdropUrl ?? featured.posterUrl),
+                  const DecoratedBox(decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0xEE0C0C0F)],
+                      stops: [0.22, 1.0]))),
+                  Positioned(left: 16, right: 16, bottom: 16,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min, children: [
+                        Text(featured.title, maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: () => _openMedia(featured,
+                            playlist: featured.isSeries ? series : movies),
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('Assistir agora')),
+                      ])),
+                ])))),
+          )),
+        SliverToBoxAdapter(child: _continueWatching()),
+        SliverToBoxAdapter(child: _homeRail('Filmes em destaque', movies)),
+        SliverToBoxAdapter(child: _homeRail('Séries populares', series)),
+        if (featured == null && !widget.catalogRepo.isLoading)
+          const SliverFillRemaining(hasScrollBody: false,
+            child: CatalogMessage(
+              icon: Icons.movie_filter_outlined,
+              title: 'Seu catálogo aparecerá aqui',
+              message: 'Carregue sua lista para explorar filmes e séries.')),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+      ],
+    );
+  }
+
   Widget _liveTab() {
     final channels = widget.catalogRepo.channels;
     return CustomScrollView(key: const PageStorageKey('live'), slivers: [
@@ -300,13 +379,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: SafeArea(top: false, child: IndexedStack(index: _currentNavIndex, children: [
-        _liveTab(), _mediaTab(widget.catalogRepo.movies, series: false),
+        _homeTab(), _liveTab(), _mediaTab(widget.catalogRepo.movies, series: false),
         _mediaTab(widget.catalogRepo.series, series: true), _favoritesTab(),
       ])),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentNavIndex,
         onDestinationSelected: (index) => setState(() => _currentNavIndex = index),
         destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Início'),
           NavigationDestination(icon: Icon(Icons.live_tv_outlined), selectedIcon: Icon(Icons.live_tv), label: 'Ao vivo'),
           NavigationDestination(icon: Icon(Icons.movie_outlined), selectedIcon: Icon(Icons.movie), label: 'Filmes'),
           NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'Séries'),
