@@ -11,6 +11,7 @@ import 'package:best_player/repositories/authentication_repository.dart';
 import 'package:best_player/repositories/catalog_repository.dart';
 import 'package:best_player/repositories/library_repository.dart';
 import 'package:best_player/screens/home_screen.dart';
+import 'package:best_player/screens/epg_screen.dart';
 import 'package:best_player/screens/series_detail_screen.dart';
 import 'package:best_player/services/app_storage.dart';
 
@@ -164,6 +165,35 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('EPG keeps selected channel readable in portrait', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    addTearDown(auth.dispose);
+    const channels = [
+      Channel(id: 'news', name: 'Notícias ao vivo', streamUrl: 'https://example.test/news'),
+      Channel(id: 'sport', name: 'Esportes em destaque', streamUrl: 'https://example.test/sport'),
+    ];
+    await tester.pumpWidget(MaterialApp(home: EpgScreen(
+      channels: channels, authRepo: auth, libraryRepo: library)));
+    await tester.pumpAndSettle();
+    expect(find.text('Notícias ao vivo'), findsWidgets);
+    expect(find.text('Assistir'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Esportes em destaque').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Assistir'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   // Opt-in visual exports, run with --update-goldens. These are review
