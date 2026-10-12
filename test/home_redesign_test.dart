@@ -64,6 +64,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Configurações'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('TV ao vivo e EPG'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Guia de programação (EPG)'));
     await tester.pumpAndSettle();
     final epg = tester.widget<EpgScreen>(find.byType(EpgScreen));
