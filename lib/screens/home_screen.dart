@@ -30,6 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String _liveQuery = '';
   String _movieQuery = '';
   String _seriesQuery = '';
+  String? _movieCategory;
+  String? _seriesCategory;
 
   @override
   void initState() {
@@ -326,8 +328,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _mediaTab(List<MediaItem> items, {required bool series}) {
     final query = series ? _seriesQuery : _movieQuery;
+    final selectedCategory = series ? _seriesCategory : _movieCategory;
+    final categories = items.map((item) => item.categoryName?.trim())
+      .whereType<String>().where((name) => name.isNotEmpty)
+      .toSet().toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final activeCategory = categories.contains(selectedCategory) ? selectedCategory : null;
     final visible = items.where((item) =>
-      item.title.toLowerCase().contains(query.toLowerCase())).toList();
+      item.title.toLowerCase().contains(query.toLowerCase()) &&
+      (activeCategory == null || item.categoryName?.trim() == activeCategory)).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _heading(series ? 'Séries' : 'Filmes', '${items.length} títulos para descobrir'),
       Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -341,6 +349,31 @@ class _HomeScreenState extends State<HomeScreen> {
           onChanged: (value) => setState(() {
             if (series) { _seriesQuery = value; } else { _movieQuery = value; }
           }),
+        )),
+      if (categories.isNotEmpty)
+        SizedBox(height: 48, child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          children: [
+            Padding(padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                avatar: const Icon(Icons.tune, size: 16),
+                label: const Text('Todos'),
+                selected: activeCategory == null,
+                onSelected: (_) => setState(() {
+                  if (series) { _seriesCategory = null; }
+                  else { _movieCategory = null; }
+                }))),
+            for (final category in categories)
+              Padding(padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(category),
+                  selected: activeCategory == category,
+                  onSelected: (_) => setState(() {
+                    if (series) { _seriesCategory = category; }
+                    else { _movieCategory = category; }
+                  }))),
+          ],
         )),
       if (widget.catalogRepo.loadError != null) _catalogErrorBanner(),
       if (widget.catalogRepo.isLoading) const LinearProgressIndicator(),
