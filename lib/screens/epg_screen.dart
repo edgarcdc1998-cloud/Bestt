@@ -7,6 +7,7 @@ import '../models/playback_type.dart';
 import '../repositories/authentication_repository.dart';
 import '../repositories/library_repository.dart';
 import '../services/epg_service.dart';
+import '../widgets/catalog_widgets.dart';
 import 'player_screen.dart';
 
 class EpgScreen extends StatefulWidget {
@@ -87,144 +88,166 @@ class _EpgScreenState extends State<EpgScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final selected = _selectedChannel;
+    final timeFmt = DateFormat('HH:mm');
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: const Text('Guia de Programação (EPG)'),
+        title: const Text('Guia de programação', maxLines: 1,
+          overflow: TextOverflow.ellipsis),
         backgroundColor: const Color(0xFF1E1E1E),
       ),
-      body: Row(
+      body: SafeArea(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Channels List
-          SizedBox(
-            width: 280,
-            child: ListView.builder(
-              itemCount: widget.channels.length,
-              itemBuilder: (context, index) {
-                final ch = widget.channels[index];
-                final isSelected = _selectedChannel?.id == ch.id;
-
-                return ListTile(
-                  selected: isSelected,
-                  selectedTileColor: Colors.white10,
-                  leading: ch.logoUrl != null
-                      ? Image.network(
-                          ch.logoUrl!,
-                          width: 36,
-                          height: 36,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.tv, color: Colors.white54),
-                        )
-                      : const Icon(Icons.tv, color: Colors.white54),
-                  title: Text(
-                    ch.name,
-                    style: TextStyle(
-                      color: isSelected ? Colors.redAccent : Colors.white,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () => _selectChannel(ch),
-                );
-              },
-            ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Canais', style: TextStyle(
+              fontSize: 20, fontWeight: FontWeight.w800)),
           ),
-          const VerticalDivider(width: 1, color: Colors.white24),
-
-          // EPG Program List
-          Expanded(
-            child: _selectedChannel == null
-                ? const Center(child: Text('Selecione um canal', style: TextStyle(color: Colors.white54)))
-                : Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        color: const Color(0xFF1E1E1E),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _selectedChannel!.name,
-                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () => _playChannel(_selectedChannel!),
-                              icon: const Icon(Icons.play_arrow),
-                              label: const Text('Assistir'),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                            ),
-                          ],
+          if (widget.channels.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('Nenhum canal disponível',
+                style: TextStyle(color: Colors.white60)),
+            )
+          else
+            SizedBox(
+              height: 108,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: widget.channels.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final channel = widget.channels[index];
+                  final active = selected?.id == channel.id;
+                  return SizedBox(
+                    width: 180,
+                    child: Material(
+                      color: active ? const Color(0xFF382022) : const Color(0xFF222226),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: active ? Colors.redAccent : Colors.white12,
+                          width: active ? 1.5 : 1)),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _selectChannel(channel),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(height: 38, width: 44,
+                                child: CatalogArtwork(url: channel.logoUrl,
+                                  icon: Icons.live_tv, fit: BoxFit.contain)),
+                              const SizedBox(height: 6),
+                              Text(channel.name, maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13, fontWeight: active
+                                    ? FontWeight.w700 : FontWeight.w500,
+                                  color: active ? Colors.redAccent : Colors.white)),
+                            ],
+                          ),
                         ),
                       ),
-                      Expanded(
-                        child: _isLoading
-                            ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
-                            : _programs.isEmpty
-                                ? const Center(child: Text('Nenhuma programação disponível', style: TextStyle(color: Colors.white54)))
-                                : ListView.builder(
-                                    itemCount: _programs.length,
-                                    itemBuilder: (context, index) {
-                                      final prog = _programs[index];
-                                      final isNow = prog.isCurrentlyAiring;
-                                      final timeFmt = DateFormat('HH:mm');
-
-                                      return Card(
-                                        color: isNow ? Colors.redAccent.withValues(alpha: 0.15) : const Color(0xFF1E1E1E),
-                                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12.0),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Text(
-                                                    '${timeFmt.format(prog.startTime)} - ${timeFmt.format(prog.endTime)}',
-                                                    style: TextStyle(
-                                                      color: isNow ? Colors.redAccent : Colors.white70,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  if (isNow) ...[
-                                                    const SizedBox(width: 8),
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.redAccent,
-                                                        borderRadius: BorderRadius.circular(4),
-                                                      ),
-                                                      child: const Text('NO AR', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                prog.title,
-                                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                                              ),
-                                              if (prog.description != null && prog.description!.isNotEmpty) ...[
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  prog.description!,
-                                                  style: const TextStyle(color: Colors.white60, fontSize: 13),
-                                                  maxLines: 2,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (selected != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(children: [
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Programação', style: TextStyle(
+                      color: Colors.white60, fontSize: 12)),
+                    Text(selected.name, maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 18,
+                        fontWeight: FontWeight.w700)),
+                  ],
+                )),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.redAccent),
+                  onPressed: () => _playChannel(selected),
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Assistir'),
+                ),
+              ]),
+            ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Colors.white12),
+          Expanded(
+            child: selected == null
+              ? const Center(child: Text('Selecione um canal',
+                  style: TextStyle(color: Colors.white54)))
+              : _isLoading
+                ? const Center(child: CircularProgressIndicator(
+                    color: Colors.redAccent))
+                : _programs.isEmpty
+                  ? const Center(child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('Nenhuma programação disponível',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white54))))
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: _programs.length,
+                      itemBuilder: (context, index) {
+                        final prog = _programs[index];
+                        final isNow = prog.isCurrentlyAiring;
+                        return Card(
+                          color: isNow
+                            ? Colors.redAccent.withValues(alpha: 0.15)
+                            : const Color(0xFF1E1E1E),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(spacing: 8, runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text('${timeFmt.format(prog.startTime)} - ${timeFmt.format(prog.endTime)}',
+                                      style: TextStyle(
+                                        color: isNow ? Colors.redAccent : Colors.white70,
+                                        fontWeight: FontWeight.bold)),
+                                    if (isNow)
+                                      const Text('NO AR', style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 11, fontWeight: FontWeight.w800)),
+                                  ]),
+                                const SizedBox(height: 6),
+                                Text(prog.title, style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w600)),
+                                if (prog.description != null &&
+                                    prog.description!.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(prog.description!,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white60, fontSize: 13)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
           ),
         ],
-      ),
+      )),
     );
   }
 }
