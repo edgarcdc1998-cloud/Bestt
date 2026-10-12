@@ -319,7 +319,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _channelTile(channels[index], channels,
             favorite: _libraryRepo!.isChannelFavorite(channels[index].id)),
           childCount: channels.length)),
-      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+      if (channels.isNotEmpty || widget.catalogRepo.isLoading)
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
     ]);
   }
 
@@ -369,9 +370,11 @@ class _HomeScreenState extends State<HomeScreen> {
         const SliverFillRemaining(hasScrollBody: false, child: CatalogMessage(
           icon: Icons.star_outline_rounded, title: 'Sua lista começa aqui',
           message: 'Toque na estrela de um canal ou conteúdo para encontrá-lo aqui.')),
-      SliverList(delegate: SliverChildBuilderDelegate((_, index) =>
-        _channelTile(channels[index], channels, favorite: true), childCount: channels.length)),
-      SliverList(delegate: SliverChildBuilderDelegate((_, index) {
+      if (channels.isNotEmpty)
+        SliverList(delegate: SliverChildBuilderDelegate((_, index) =>
+          _channelTile(channels[index], channels, favorite: true), childCount: channels.length)),
+      if (media.isNotEmpty)
+        SliverList(delegate: SliverChildBuilderDelegate((_, index) {
         final item = media[index];
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
