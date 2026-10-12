@@ -147,8 +147,7 @@ class EpgService {
     return {};
   }
 
-  /// Xtream's short EPG may encode titles and descriptions in base64.
-  /// Leave provider text unchanged when it is not valid base64 UTF-8.
+  /// Decode Xtream short EPG base64 when text is valid UTF-8.
   static String decodeShortEpgText(String value) {
     final text = value.trim();
     if (text.isEmpty || text.length % 4 != 0 ||
@@ -170,7 +169,7 @@ class EpgService {
             channelId: streamId.toString(),
             title: decodeShortEpgText(map['title']?.toString() ?? 'Sem Título'),
             description: (map['descr'] ?? map['description']) == null ? null
-              : decodeShortEpgText((map['descr'] ?? map['description']).toString()),
+                : decodeShortEpgText((map['descr'] ?? map['description']).toString()),
             startTime: DateTime.tryParse(map['start'] as String? ?? '') ?? DateTime.now(),
             endTime: DateTime.tryParse(map['end'] as String? ?? '') ?? DateTime.now(),
           );
@@ -223,9 +222,8 @@ class EpgService {
 ).hasMatch(text)) return value;
     try {
       final decoded = utf8.decode(base64.decode(text));
-      if (decoded.isEmpty || decoded.runes.any((r) => r < 32 && r != 10 && r != 13 && r != 9)) {
-        return value;
-      }
+      if (decoded.isEmpty || decoded.runes.any((r) =>
+          r < 32 && r != 10 && r != 13 && r != 9)) return value;
       return decoded;
     } on FormatException {
       return value;
