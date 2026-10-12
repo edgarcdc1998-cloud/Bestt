@@ -4,6 +4,13 @@ import 'package:best_player/services/epg_service.dart';
 
 void main() {
   group('EpgService and EpgProgram Tests', () {
+    test('Xtream short EPG decodes base64 text and preserves plain labels', () {
+      expect(EpgService.decodeShortEpgText('Sm9ybmFsIE5hY2lvbmFs'), 'Jornal Nacional');
+      expect(EpgService.decodeShortEpgText('Tm90w61jaWFzIGRvIGRpYQ=='), 'Notícias do dia');
+      expect(EpgService.decodeShortEpgText('Jornal ao vivo'), 'Jornal ao vivo');
+      expect(EpgService.decodeShortEpgText(''), '');
+    });
+
     test('1. EpgProgram isCurrentlyAiring and progress calculation', () {
       final now = DateTime.now();
       final program = EpgProgram(
