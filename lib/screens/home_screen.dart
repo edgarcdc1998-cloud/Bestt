@@ -27,6 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentNavIndex = 0;
   LibraryRepository? _libraryRepo;
   bool _initializationFailed = false;
+  String _liveQuery = '';
+  String _movieQuery = '';
+  String _seriesQuery = '';
 
   @override
   void initState() {
@@ -285,9 +288,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _liveTab() {
-    final channels = widget.catalogRepo.channels;
+    final allChannels = widget.catalogRepo.channels;
+    final channels = allChannels.where((channel) =>
+      channel.name.toLowerCase().contains(_liveQuery.toLowerCase())).toList();
     return CustomScrollView(key: const PageStorageKey('live'), slivers: [
-      SliverToBoxAdapter(child: _heading('Ao vivo', '${channels.length} canais no seu catálogo')),
+      SliverToBoxAdapter(child: _heading('TV ao vivo', '${allChannels.length} canais no seu catálogo')),
+      SliverToBoxAdapter(child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: TextField(
+          decoration: InputDecoration(
+            hintText: 'Buscar canais',
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none)),
+          onChanged: (value) => setState(() => _liveQuery = value),
+        ))),
       SliverToBoxAdapter(child: _continueWatching()),
       if (widget.catalogRepo.loadError != null)
         SliverToBoxAdapter(child: _catalogErrorBanner()),
@@ -306,20 +322,36 @@ class _HomeScreenState extends State<HomeScreen> {
     ]);
   }
 
-  Widget _mediaTab(List<MediaItem> items, {required bool series}) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
+  Widget _mediaTab(List<MediaItem> items, {required bool series}) {
+    final query = series ? _seriesQuery : _movieQuery;
+    final visible = items.where((item) =>
+      item.title.toLowerCase().contains(query.toLowerCase())).toList();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _heading(series ? 'Séries' : 'Filmes', '${items.length} títulos para descobrir'),
+      Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: TextField(
+          decoration: InputDecoration(
+            hintText: series ? 'Buscar séries' : 'Buscar filmes',
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none)),
+          onChanged: (value) => setState(() {
+            if (series) { _seriesQuery = value; } else { _movieQuery = value; }
+          }),
+        )),
       if (widget.catalogRepo.loadError != null) _catalogErrorBanner(),
       if (widget.catalogRepo.isLoading) const LinearProgressIndicator(),
-      Expanded(child: items.isEmpty
+      Expanded(child: visible.isEmpty
         ? CatalogMessage(icon: series ? Icons.video_library_outlined : Icons.movie_outlined,
-            title: series ? 'Nenhuma série encontrada' : 'Nenhum filme encontrado',
-            message: widget.catalogRepo.isLoading ? 'Carregando seu catálogo…' : 'O conteúdo da sua lista aparecerá aqui.')
-        : MediaCatalogGrid(items: items, storageKey: series ? 'series' : 'movies',
-            onTap: (media) => _openMedia(media, playlist: items))),
-    ],
-  );
+            title: query.isNotEmpty ? 'Nenhum resultado para sua busca'
+              : (series ? 'Nenhuma série encontrada' : 'Nenhum filme encontrado'),
+            message: widget.catalogRepo.isLoading ? 'Carregando seu catálogo…'
+              : 'Confira sua busca ou sua lista de conteúdos.')
+        : MediaCatalogGrid(items: visible, storageKey: series ? 'series' : 'movies',
+            onTap: (media) => _openMedia(media, playlist: visible))),
+    ]);
+  }
 
   Widget _favoritesTab() {
     final channels = _libraryRepo!.favoriteChannels;
