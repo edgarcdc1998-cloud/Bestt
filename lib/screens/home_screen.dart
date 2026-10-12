@@ -282,7 +282,8 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icons.movie_filter_outlined,
               title: 'Seu catálogo aparecerá aqui',
               message: 'Carregue sua lista para explorar filmes e séries.')),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        if (featured != null || widget.catalogRepo.isLoading)
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
   }
