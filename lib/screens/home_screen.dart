@@ -22,8 +22,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentNavIndex = 0;
+  bool _wasBackgrounded = false;
+  bool _refreshingOnResume = false;
   LibraryRepository? _libraryRepo;
   bool _initializationFailed = false;
   String _liveQuery = '';
@@ -35,8 +37,31 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.catalogRepo.addListener(_refresh);
     _initLibrary();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _wasBackgrounded = true;
+    } else if (state == AppLifecycleState.resumed && _wasBackgrounded) {
+      _wasBackgrounded = false;
+      _refreshCatalogOnResume();
+    }
+  }
+
+  Future<void> _refreshCatalogOnResume() async {
+    if (_refreshingOnResume || !widget.authRepo.isAuthenticated) return;
+    _refreshingOnResume = true;
+    try {
+      final storage = await AppStorage.getInstance();
+      if (!mounted || storage.getString('catalog_refresh_on_resume') != 'true') return;
+      if (!widget.catalogRepo.isLoading) await widget.catalogRepo.loadCatalog();
+    } finally {
+      _refreshingOnResume = false;
+    }
   }
 
   @override
@@ -74,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.catalogRepo.removeListener(_refresh);
     _libraryRepo?.removeListener(_refresh);
     _libraryRepo?.dispose();
