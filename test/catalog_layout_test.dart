@@ -38,6 +38,30 @@ class PreviewCatalog extends CatalogRepository {
   ];
 }
 
+class XtreamCategoryPreviewCatalog extends PreviewCatalog {
+  XtreamCategoryPreviewCatalog(super.auth);
+  @override
+  List<Map<String, dynamic>> get vodCategories => const [
+    {'category_id': '10', 'category_name': 'Ação'},
+    {'category_id': '20', 'category_name': 'Drama'},
+  ];
+  @override
+  List<Map<String, dynamic>> get seriesCategories => const [
+    {'category_id': '30', 'category_name': 'Ficção científica'},
+    {'category_id': '40', 'category_name': 'Suspense'},
+  ];
+  @override
+  List<MediaItem> get movies => const [
+    MediaItem(id: 'action', title: 'Filme de ação', streamUrl: 'https://example.test/action', type: PlaybackType.movie, categoryId: '10'),
+    MediaItem(id: 'drama', title: 'Filme dramático', streamUrl: 'https://example.test/drama', type: PlaybackType.movie, categoryId: '20'),
+  ];
+  @override
+  List<MediaItem> get series => const [
+    MediaItem(id: 'scifi', title: 'Série espacial', streamUrl: '', type: PlaybackType.series, categoryId: '30'),
+    MediaItem(id: 'suspense', title: 'Série de mistério', streamUrl: '', type: PlaybackType.series, categoryId: '40'),
+  ];
+}
+
 class EmptyPreviewCatalog extends CatalogRepository {
   EmptyPreviewCatalog(super.auth);
   @override
@@ -243,6 +267,35 @@ void main() {
     await tester.tap(find.text('Todos'));
     await tester.pumpAndSettle();
     expect(find.text('Noite na cidade'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Xtream category IDs filter movies and series when names are absent', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = XtreamCategoryPreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Filmes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ação'), findsOneWidget);
+    await tester.tap(find.text('Drama'));
+    await tester.pumpAndSettle();
+    expect(find.text('Filme dramático'), findsOneWidget);
+    expect(find.text('Filme de ação'), findsNothing);
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Séries')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ficção científica'), findsOneWidget);
+    await tester.tap(find.text('Suspense'));
+    await tester.pumpAndSettle();
+    expect(find.text('Série de mistério'), findsOneWidget);
+    expect(find.text('Série espacial'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
