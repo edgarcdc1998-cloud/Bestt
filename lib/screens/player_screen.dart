@@ -47,6 +47,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Media3PlayerEngine? _media3Engine;
   late final PlayerManager _playerManager;
   bool _useMedia3 = true;
+  bool _switchingBackend = false;
   bool _isDisposed = false;
   bool _isOverlayVisible = true;
   bool _isPlaying = false;
@@ -181,11 +182,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _switchBackend() async {
-    if (_isDisposed) return;
-    _safeSetState(() => _useMedia3 = !_useMedia3);
-    _playerManager.startPlaybackSession();
-    debugPrint('[PLAYER_AB_TEST] backend=${_useMedia3 ? 'MEDIA3' : 'VLC'}');
-    await _connectStream();
+    if (_isDisposed || _switchingBackend) return;
+    _switchingBackend = true;
+    final previousBackend = _useMedia3;
+    try {
+      // Detach the native video view before releasing its platform controller.
+      _safeSetState(() => _isBuffering = true);
+      await _teardownCurrentController();
+      if (_isDisposed || !mounted) return;
+      _safeSetState(() => _useMedia3 = !previousBackend);
+      debugPrint('[PLAYER_AB_TEST] backend=${_useMedia3 ? 'MEDIA3' : 'VLC'}');
+      await _connectStream();
+    } catch (error) {
+      debugPrint('[PlayerScreen] Backend switching failed: $error');
+      if (!_isDisposed) _connectionManager.onStreamError('Não foi possível trocar o player');
+    } finally {
+      _switchingBackend = false;
+    }
   }
 
   Future<void> _connectStream() async {
@@ -526,6 +539,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_media3Engine != null) {
       try { _media3Engine!.videoController?.removeListener(_onMedia3StateChanged); } catch (_) {}
       _media3Engine = null;
+    }
+    if (mounted && !_isDisposed) {
+      _safeSetState(() => _isBuffering = true);
+      await WidgetsBinding.instance.endOfFrame;
     }
     await _playerManager.disposeActiveEngine();
   }
