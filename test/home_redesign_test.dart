@@ -22,6 +22,34 @@ void main() {
     auth = AuthenticationRepository(storage);
   });
 
+  testWidgets('automatic next episode preference persists after reopening settings', (tester) async {
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+
+    Future<void> openSettings() async {
+      await tester.pumpWidget(MaterialApp(home: SettingsScreen(
+        authRepo: auth, catalogRepo: catalog, libraryRepo: library)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reprodução e player'));
+      await tester.pumpAndSettle();
+    }
+
+    await openSettings();
+    final toggle = find.widgetWithText(SwitchListTile, 'Próximo episódio automático');
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(storage.getString('player_auto_next_episode'), 'false');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await openSettings();
+    expect(tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Próximo episódio automático')).value, isFalse);
+  });
+
   testWidgets('M3U series with a direct URL offers playback without Xtream', (tester) async {
     await auth.loginM3u('https://example.test/list.m3u');
     final library = LibraryRepository(storage);
