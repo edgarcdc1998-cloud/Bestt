@@ -73,11 +73,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     subtitle: Text(detail),
   );
 
+  Widget _section(Widget child) => Card(
+    color: const Color(0xFF1D1D21),
+    margin: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16),
+      side: const BorderSide(color: Colors.white12)),
+    child: child,
+  );
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Configurações')),
     body: ListView(children: [
-      ExpansionTile(
+      const Padding(padding: EdgeInsets.fromLTRB(20, 16, 20, 14),
+        child: Text('Personalize sua experiência no Best Player.',
+          style: TextStyle(color: Colors.white60))),
+      _section(ExpansionTile(
         leading: const Icon(Icons.play_circle_outline, color: Colors.redAccent),
         title: const Text('Reprodução e player'),
         children: [
@@ -85,8 +96,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _info('Rotação', 'O player abre em paisagem e restaura a orientação ao sair', Icons.screen_rotation),
           _info('Próximo episódio e retomada', 'Recursos disponíveis durante a reprodução', Icons.skip_next),
         ],
-      ),
-      ExpansionTile(
+      )),
+      _section(ExpansionTile(
         leading: const Icon(Icons.playlist_play, color: Colors.redAccent),
         title: const Text('Catálogo IPTV'),
         children: [
@@ -101,16 +112,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _refreshing ? null : _refreshCatalog,
           ),
         ],
-      ),
-      ExpansionTile(
+      )),
+      _section(ExpansionTile(
         leading: const Icon(Icons.palette_outlined, color: Colors.redAccent),
         title: const Text('Aparência'),
         children: [
           _info('Tema atual', 'Escuro, com detalhes vermelhos', Icons.dark_mode_outlined),
           _info('Organização', 'Capas em grade e filtros por categoria', Icons.grid_view),
         ],
-      ),
-      ExpansionTile(
+      )),
+      _section(ExpansionTile(
         leading: const Icon(Icons.live_tv_outlined, color: Colors.redAccent),
         title: const Text('TV ao vivo e EPG'),
         children: [
@@ -125,16 +136,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 libraryRepo: widget.libraryRepo))),
           ),
         ],
-      ),
-      ExpansionTile(
+      )),
+      _section(ExpansionTile(
         leading: const Icon(Icons.cast, color: Colors.redAccent),
         title: const Text('Transmissão e Best Roku'),
         children: [
           _info('Transmitir', 'A busca por dispositivos Chromecast está disponível dentro do player', Icons.cast_connected),
           _info('Best Roku', 'Use o receptor configurado; a conexão é gerenciada pelo app', Icons.tv),
         ],
-      ),
-      ExpansionTile(
+      )),
+      _section(ExpansionTile(
         leading: const Icon(Icons.shield_outlined, color: Colors.redAccent),
         title: const Text('Dados e privacidade'),
         children: [
@@ -150,7 +161,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _logout,
           ),
         ],
-      ),
+      )),
     ]),
   );
 }
