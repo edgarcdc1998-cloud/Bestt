@@ -213,24 +213,36 @@ class _HomeScreenState extends State<HomeScreen> {
   // Curated sections use the existing provider catalog, never demo titles.
   Widget _homeRail(String title, List<MediaItem> items) {
     if (items.isEmpty) return const SizedBox.shrink();
+    final isSeries = items.first.isSeries;
+    final scale = MediaQuery.textScalerOf(context).scale(13) / 13;
+    final compact = MediaQuery.sizeOf(context).height < 450;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-        child: Text(title, style: const TextStyle(
-          fontSize: 19, fontWeight: FontWeight.w800)),
+        padding: const EdgeInsets.fromLTRB(16, 18, 10, 10),
+        child: Row(children: [
+          Expanded(child: Text(title, maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
+          TextButton(
+            onPressed: () => setState(() => _currentNavIndex = isSeries ? 3 : 2),
+            child: const Text('Ver tudo ›',
+              style: TextStyle(color: Colors.white70, fontSize: 12))),
+        ]),
       ),
-      SizedBox(height: 226, child: ListView.separated(
-        key: PageStorageKey('home-rail-$title'),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length > 12 ? 12 : items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, index) {
-          final item = items[index];
-          return SizedBox(width: 130, child: MediaPosterCard(
-            media: item, onTap: () => _openMedia(item, playlist: items)));
-        },
-      )),
+      SizedBox(height: (compact ? 175 : 205) + 45 * scale,
+        child: ListView.separated(
+          key: PageStorageKey('home-rail-$title'),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          scrollDirection: Axis.horizontal,
+          itemCount: items.length > 12 ? 12 : items.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 9),
+          itemBuilder: (_, index) {
+            final item = items[index];
+            return SizedBox(width: compact ? 114 : 132,
+              child: MediaPosterCard(media: item,
+                onTap: () => _openMedia(item, playlist: items)));
+          },
+        )),
     ]);
   }
 
