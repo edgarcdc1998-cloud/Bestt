@@ -246,6 +246,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Home hero offers real featured title and action', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    expect(find.text('Uma viagem além do horizonte'), findsWidgets);
+    expect(find.text('Assistir'), findsOneWidget);
+    expect(find.text('Filmes em destaque'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   // Opt-in visual exports, run with --update-goldens. These are review
   // screenshots, not baselines used to claim regression coverage.
   if (const bool.fromEnvironment('CAPTURE_PREVIEWS')) {
