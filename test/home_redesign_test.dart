@@ -22,6 +22,24 @@ void main() {
     auth = AuthenticationRepository(storage);
   });
 
+  testWidgets('catalog refresh-on-resume preference is persisted', (tester) async {
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(MaterialApp(home: SettingsScreen(
+      authRepo: auth, catalogRepo: catalog, libraryRepo: library)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Catálogo IPTV'));
+    await tester.pumpAndSettle();
+    final toggle = find.widgetWithText(SwitchListTile, 'Atualizar ao voltar para o app');
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(storage.getString('catalog_refresh_on_resume'), 'true');
+  });
+
   testWidgets('automatic next episode preference persists after reopening settings', (tester) async {
     final library = LibraryRepository(storage);
     await library.init();
