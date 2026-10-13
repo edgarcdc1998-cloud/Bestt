@@ -353,13 +353,36 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _mediaTab(List<MediaItem> items, {required bool series}) {
     final query = series ? _seriesQuery : _movieQuery;
     final selectedCategory = series ? _seriesCategory : _movieCategory;
-    final categories = items.map((item) => item.categoryName?.trim())
-      .whereType<String>().where((name) => name.isNotEmpty)
-      .toSet().toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    // Xtream identifies streams by category_id; category_name is often absent.
+    // Use provider definitions, falling back to M3U item categories.
+    final definitions = series ? widget.catalogRepo.seriesCategories
+        : widget.catalogRepo.vodCategories;
+    final categoryLabels = <String, String>{};
+    for (final category in definitions) {
+      final id = category['category_id']?.toString().trim() ?? '';
+      final label = category['category_name']?.toString().trim() ?? '';
+      if (id.isNotEmpty) categoryLabels[id] = label.isNotEmpty ? label : id;
+    }
+    for (final item in items) {
+      final id = item.categoryId?.trim() ?? '';
+      final name = item.categoryName?.trim() ?? '';
+      if (id.isNotEmpty) {
+        categoryLabels.putIfAbsent(id, () => name.isNotEmpty ? name : id);
+      } else if (name.isNotEmpty) {
+        categoryLabels.putIfAbsent(name, () => name);
+      }
+    }
+    final categories = categoryLabels.keys.toList()
+      ..sort((a, b) => categoryLabels[a]!.toLowerCase()
+          .compareTo(categoryLabels[b]!.toLowerCase()));
     final activeCategory = categories.contains(selectedCategory) ? selectedCategory : null;
-    final visible = items.where((item) =>
-      item.title.toLowerCase().contains(query.toLowerCase()) &&
-      (activeCategory == null || item.categoryName?.trim() == activeCategory)).toList();
+    final visible = items.where((item) {
+      final id = item.categoryId?.trim();
+      final name = item.categoryName?.trim();
+      return item.title.toLowerCase().contains(query.toLowerCase()) &&
+          (activeCategory == null || id == activeCategory ||
+            (id == null || id.isEmpty) && name == activeCategory);
+    }).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (MediaQuery.sizeOf(context).height < 450)
         Padding(
@@ -398,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
             for (final category in categories)
               Padding(padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(category),
+                  label: Text(categoryLabels[category] ?? category),
                   selected: activeCategory == category,
                   onSelected: (_) => setState(() {
                     if (series) { _seriesCategory = category; }
