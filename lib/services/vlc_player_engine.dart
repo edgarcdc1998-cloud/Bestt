@@ -51,7 +51,8 @@ class VlcPlayerEngine implements PlayerEngine {
 
     final controller = VlcPlayerController.network(
       streamUrl,
-      hwAcc: HwAcc.full,
+      // Avoid forcing hardware decoding while diagnosing device-specific native crashes.
+      hwAcc: HwAcc.disabled,
       autoPlay: true,
       options: VlcPlayerOptions(
         advanced: VlcAdvancedOptions([
