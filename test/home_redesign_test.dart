@@ -95,6 +95,8 @@ void main() {
     final library = epg.libraryRepo;
     Navigator.of(tester.element(find.byType(EpgScreen))).pop();
     await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.byType(SettingsScreen))).pop();
+    await tester.pumpAndSettle();
     await library.addToHistory(const MediaItem(
       id: 'resume-1', title: 'Filme para continuar', streamUrl: 'https://example.test/movie.mp4',
       type: PlaybackType.movie, resumePosition: Duration(minutes: 3), duration: Duration(minutes: 90),
