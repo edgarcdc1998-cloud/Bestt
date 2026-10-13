@@ -91,6 +91,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _section(ExpansionTile(
         leading: const Icon(Icons.play_circle_outline, color: Colors.redAccent),
         title: const Text('Reprodução e player'),
+        subtitle: const Text('Player, orientação e continuidade',
+          style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           _info('Mecanismo de vídeo', 'Troca entre Media3 e VLC disponível no player', Icons.movie_filter_outlined),
           _info('Rotação', 'O player abre em paisagem e restaura a orientação ao sair', Icons.screen_rotation),
@@ -100,6 +102,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _section(ExpansionTile(
         leading: const Icon(Icons.playlist_play, color: Colors.redAccent),
         title: const Text('Catálogo IPTV'),
+        subtitle: const Text('Atualização e dados do catálogo',
+          style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           ListTile(
             leading: _refreshing
@@ -116,6 +120,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _section(ExpansionTile(
         leading: const Icon(Icons.palette_outlined, color: Colors.redAccent),
         title: const Text('Aparência'),
+        subtitle: const Text('Tema e organização do aplicativo',
+          style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           _info('Tema atual', 'Escuro, com detalhes vermelhos', Icons.dark_mode_outlined),
           _info('Organização', 'Capas em grade e filtros por categoria', Icons.grid_view),
@@ -124,6 +130,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _section(ExpansionTile(
         leading: const Icon(Icons.live_tv_outlined, color: Colors.redAccent),
         title: const Text('TV ao vivo e EPG'),
+        subtitle: const Text('Guia e programação dos canais',
+          style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           ListTile(
             leading: const Icon(Icons.view_timeline_outlined),
@@ -140,6 +148,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _section(ExpansionTile(
         leading: const Icon(Icons.cast, color: Colors.redAccent),
         title: const Text('Transmissão e Best Roku'),
+        subtitle: const Text('Dispositivos e transmissão',
+          style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           _info('Transmitir', 'A busca por dispositivos Chromecast está disponível dentro do player', Icons.cast_connected),
           _info('Best Roku', 'Use o receptor configurado; a conexão é gerenciada pelo app', Icons.tv),
@@ -148,6 +158,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _section(ExpansionTile(
         leading: const Icon(Icons.shield_outlined, color: Colors.redAccent),
         title: const Text('Dados e privacidade'),
+        subtitle: const Text('Histórico e conta',
+          style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           ListTile(
             leading: const Icon(Icons.delete_outline),
