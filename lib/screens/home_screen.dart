@@ -247,32 +247,45 @@ class _HomeScreenState extends State<HomeScreen> {
         if (widget.catalogRepo.isLoading)
           const SliverToBoxAdapter(child: LinearProgressIndicator()),
         if (featured != null)
-          SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: ClipRRect(borderRadius: BorderRadius.circular(18),
-              child: SizedBox(height: 252, child: Stack(
-                fit: StackFit.expand, children: [
+          SliverToBoxAdapter(child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = MediaQuery.sizeOf(context).height < 460;
+              return SizedBox(height: compact ? 220 : 390,
+                child: Stack(fit: StackFit.expand, children: [
                   CatalogArtwork(url: featured.backdropUrl ?? featured.posterUrl),
                   const DecoratedBox(decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xEE0C0C0F)],
-                      stops: [0.22, 1.0]))),
-                  Positioned(left: 16, right: 16, bottom: 16,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min, children: [
+                      colors: [Color(0x1108080B), Color(0xDD08080B), Color(0xFF121212)],
+                      stops: [0.12, 0.72, 1]))),
+                  Positioned(left: 20, right: 20, bottom: 22,
+                    child: Column(mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(featured.title, maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 12),
+                          style: const TextStyle(fontSize: 29,
+                            height: 1.1, fontWeight: FontWeight.w900)),
+                        if (featured.categoryName != null) ...[
+                          const SizedBox(height: 6),
+                          Text(featured.categoryName!, maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white70)),
+                        ],
+                        if (!compact && (featured.description ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 9),
+                          Text(featured.description!, maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white70, height: 1.3)),
+                        ],
+                        const SizedBox(height: 14),
                         FilledButton.icon(
                           onPressed: () => _openMedia(featured,
                             playlist: featured.isSeries ? series : movies),
                           icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('Assistir agora')),
+                          label: const Text('Assistir')),
                       ])),
-                ]))),
+                ]));
+            },
           )),
         SliverToBoxAdapter(child: _continueWatching()),
         SliverToBoxAdapter(child: _homeRail('Filmes em destaque', movies)),
