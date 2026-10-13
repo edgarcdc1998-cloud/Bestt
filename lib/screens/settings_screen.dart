@@ -22,6 +22,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _refreshing = false;
   bool _autoNext = true;
+  bool _refreshOnResume = false;
 
   @override
   void initState() {
@@ -33,12 +34,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final storage = await AppStorage.getInstance();
     if (mounted) setState(() =>
       _autoNext = storage.getString('player_auto_next_episode') != 'false');
+    if (mounted) setState(() =>
+      _refreshOnResume = storage.getString('catalog_refresh_on_resume') == 'true');
   }
 
   Future<void> _setAutoNext(bool enabled) async {
     final storage = await AppStorage.getInstance();
     await storage.setString('player_auto_next_episode', enabled.toString());
     if (mounted) setState(() => _autoNext = enabled);
+  }
+
+  Future<void> _setRefreshOnResume(bool enabled) async {
+    final storage = await AppStorage.getInstance();
+    await storage.setString('catalog_refresh_on_resume', enabled.toString());
+    if (mounted) setState(() => _refreshOnResume = enabled);
   }
 
   void _message(String text) {
@@ -133,6 +142,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         subtitle: const Text('Atualização e dados do catálogo',
           style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.sync),
+            title: const Text('Atualizar ao voltar para o app'),
+            subtitle: const Text('Recarrega a lista ao retornar do segundo plano'),
+            value: _refreshOnResume,
+            onChanged: _setRefreshOnResume,
+            activeColor: Colors.redAccent,
+          ),
           ListTile(
             leading: _refreshing
               ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
