@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../repositories/authentication_repository.dart';
+import '../services/app_storage.dart';
 import '../repositories/catalog_repository.dart';
 import '../repositories/library_repository.dart';
 import 'epg_screen.dart';
@@ -20,6 +21,25 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _refreshing = false;
+  bool _autoNext = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlayerPreference();
+  }
+
+  Future<void> _loadPlayerPreference() async {
+    final storage = await AppStorage.getInstance();
+    if (mounted) setState(() =>
+      _autoNext = storage.getString('player_auto_next_episode') != 'false');
+  }
+
+  Future<void> _setAutoNext(bool enabled) async {
+    final storage = await AppStorage.getInstance();
+    await storage.setString('player_auto_next_episode', enabled.toString());
+    if (mounted) setState(() => _autoNext = enabled);
+  }
 
   void _message(String text) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -96,7 +116,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           _info('Mecanismo de vídeo', 'Troca entre Media3 e VLC disponível no player', Icons.movie_filter_outlined),
           _info('Rotação', 'O player abre em paisagem e restaura a orientação ao sair', Icons.screen_rotation),
-          _info('Próximo episódio e retomada', 'Recursos disponíveis durante a reprodução', Icons.skip_next),
+          SwitchListTile(
+            secondary: const Icon(Icons.skip_next),
+            title: const Text('Próximo episódio automático'),
+            subtitle: const Text('Reproduzir o próximo episódio ao terminar o atual'),
+            value: _autoNext,
+            onChanged: _setAutoNext,
+            activeThumbColor: Colors.redAccent,
+          ),
+          _info('Retomar reprodução', 'O player usa o progresso salvo de filmes e episódios', Icons.history),
         ],
       )),
       _section(ExpansionTile(
