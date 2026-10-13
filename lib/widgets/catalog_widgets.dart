@@ -19,9 +19,21 @@ class CatalogArtwork extends StatelessWidget {
     final uri = Uri.tryParse(url?.trim() ?? '');
     if (uri == null || !uri.hasAuthority ||
         (uri.scheme != 'http' && uri.scheme != 'https')) return fallback;
-    return Image.network(uri.toString(), fit: fit,
+    return Image.network(
+      uri.toString(),
+      fit: fit,
+      gaplessPlayback: true,
       errorBuilder: (_, __, ___) => fallback,
-      loadingBuilder: (_, child, progress) => progress == null ? child : fallback,
+      frameBuilder: (_, child, frame, wasSynchronouslyLoaded) =>
+        wasSynchronouslyLoaded || frame != null
+          ? child
+          : const ColoredBox(
+              color: Color(0xFF24242B),
+              child: Center(child: SizedBox(
+                width: 22, height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white30))),
+            ),
     );
   }
 }
