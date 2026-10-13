@@ -122,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('Reproduzir o próximo episódio ao terminar o atual'),
             value: _autoNext,
             onChanged: _setAutoNext,
-            activeThumbColor: Colors.redAccent,
+            activeColor: Colors.redAccent,
           ),
           _info('Retomar reprodução', 'O player usa o progresso salvo de filmes e episódios', Icons.history),
         ],
