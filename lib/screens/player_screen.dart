@@ -6,6 +6,7 @@ import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
 import 'package:flutter_vlc_player_16kb/flutter_vlc_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/media_item.dart';
+import '../services/app_storage.dart';
 import '../repositories/library_repository.dart';
 import '../services/player_connection_manager.dart';
 import '../services/media3_player_engine.dart';
@@ -134,8 +135,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _playerManager.bindConnectionManager(_connectionManager);
     _connectionManager.addListener(_onConnectionStatusChanged);
 
+    _loadPlaybackPreferences();
     _enableImmersiveMode();
     _connectStream();
+  }
+
+  Future<void> _loadPlaybackPreferences() async {
+    final storage = await AppStorage.getInstance();
+    if (_isDisposed || !mounted) return;
+    _safeSetState(() => _autoPlayNextEpisode =
+      storage.getString('player_auto_next_episode') != 'false');
   }
 
   Future<void> _enableImmersiveMode() async {
