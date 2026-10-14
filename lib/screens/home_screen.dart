@@ -26,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentNavIndex = 0;
   bool _wasBackgrounded = false;
   bool _refreshingOnResume = false;
+  bool _compactPosters = false;
   LibraryRepository? _libraryRepo;
   bool _initializationFailed = false;
   String _liveQuery = '';
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     widget.catalogRepo.addListener(_refresh);
     _initLibrary();
+    _loadDisplayPreference();
   }
 
   @override
@@ -71,6 +73,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       oldWidget.catalogRepo.removeListener(_refresh);
       widget.catalogRepo.addListener(_refresh);
     }
+  }
+
+  Future<void> _loadDisplayPreference() async {
+    final storage = await AppStorage.getInstance();
+    if (mounted) setState(() =>
+      _compactPosters = storage.getString('catalog_compact_posters') == 'true');
   }
 
   Future<void> _initLibrary() async {
@@ -481,7 +489,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               : (series ? 'Nenhuma série encontrada' : 'Nenhum filme encontrado'),
             message: widget.catalogRepo.isLoading ? 'Carregando seu catálogo…'
               : 'Confira sua busca ou sua lista de conteúdos.')
-        : MediaCatalogGrid(items: visible, storageKey: series ? 'series' : 'movies',
+        : MediaCatalogGrid(items: visible, compact: _compactPosters,
+            storageKey: series ? 'series' : 'movies',
             onTap: (media) => _openMedia(media, playlist: visible))),
     ]);
   }
@@ -542,12 +551,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           IconButton(
             tooltip: 'Configurações',
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => SettingsScreen(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => SettingsScreen(
                 authRepo: widget.authRepo,
                 catalogRepo: widget.catalogRepo,
-                libraryRepo: _libraryRepo!))),
-
+                libraryRepo: _libraryRepo!)));
+              if (mounted) await _loadDisplayPreference();
+            },
           ),
         ],
       ),
