@@ -103,11 +103,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   );
 
   Widget _section(Widget child) => Card(
-    color: const Color(0xFF1D1D21),
+    color: const Color(0xFF1C1C20),
     margin: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+    clipBehavior: Clip.antiAlias,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16),
       side: const BorderSide(color: Colors.white12)),
-    child: child,
+    child: Theme(data: Theme.of(context).copyWith(
+      dividerColor: Colors.transparent,
+      listTileTheme: const ListTileThemeData(iconColor: Colors.white70)),
+      child: child),
   );
 
   @override
