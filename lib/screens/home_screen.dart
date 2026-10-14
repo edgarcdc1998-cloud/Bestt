@@ -299,6 +299,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Positioned(left: 20, right: 20, bottom: 22,
                     child: Column(mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(6)),
+                          child: Text(featured.isSeries ? 'SÉRIE EM DESTAQUE' : 'FILME EM DESTAQUE',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
+                              color: Colors.white, letterSpacing: 0.9))),
+                        const SizedBox(height: 10),
                         Text(featured.title, maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 29,
