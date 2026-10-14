@@ -80,16 +80,24 @@ class MediaPosterCard extends StatelessWidget {
     button: true,
     label: media.title,
     child: Material(
-      color: Colors.transparent,
+      color: const Color(0xFF1C1C20),
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(onTap: onTap, child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(12),
-            child: CatalogArtwork(url: media.posterUrl,
-              icon: media.isSeries ? Icons.video_library_outlined : Icons.movie_outlined))),
-          Padding(padding: const EdgeInsets.fromLTRB(2, 10, 2, 0),
+          Expanded(child: Stack(fit: StackFit.expand, children: [
+            CatalogArtwork(url: media.posterUrl,
+              icon: media.isSeries ? Icons.video_library_outlined : Icons.movie_outlined),
+            Positioned(top: 8, left: 8, child: DecoratedBox(
+              decoration: BoxDecoration(color: const Color(0xE6121212),
+                borderRadius: BorderRadius.circular(5)),
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                child: Text(media.isSeries ? 'SÉRIE' : 'FILME',
+                  style: const TextStyle(color: Colors.white, fontSize: 9,
+                    letterSpacing: 0.7, fontWeight: FontWeight.w800))))),
+          ])),
+          Padding(padding: const EdgeInsets.fromLTRB(9, 9, 9, 10),
             child: Text(media.title, maxLines: 2, overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 13, height: 1.35, fontWeight: FontWeight.w600))),
         ],
