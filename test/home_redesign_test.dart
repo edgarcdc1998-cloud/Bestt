@@ -40,6 +40,32 @@ void main() {
     expect(storage.getString('catalog_refresh_on_resume'), 'true');
   });
 
+  testWidgets('compact poster preference persists across settings sessions', (tester) async {
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+    Future<void> showSettings() async {
+      await tester.pumpWidget(MaterialApp(home: SettingsScreen(
+        authRepo: auth, catalogRepo: catalog, libraryRepo: library)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aparência'));
+      await tester.pumpAndSettle();
+    }
+    await showSettings();
+    final toggle = find.widgetWithText(SwitchListTile, 'Grade compacta');
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(storage.getString('catalog_compact_posters'), 'true');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await showSettings();
+    expect(tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Grade compacta')).value, isTrue);
+  });
+
   testWidgets('automatic next episode preference persists after reopening settings', (tester) async {
     final library = LibraryRepository(storage);
     await library.init();
