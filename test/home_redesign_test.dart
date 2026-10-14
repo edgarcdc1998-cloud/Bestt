@@ -9,6 +9,7 @@ import 'package:best_player/repositories/library_repository.dart';
 import 'package:best_player/screens/epg_screen.dart';
 import 'package:best_player/screens/home_screen.dart';
 import 'package:best_player/screens/series_detail_screen.dart';
+import 'package:best_player/screens/settings_screen.dart';
 import 'package:best_player/services/app_storage.dart';
 
 void main() {
@@ -19,6 +20,78 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     storage = await AppStorage.getInstance();
     auth = AuthenticationRepository(storage);
+  });
+
+  testWidgets('catalog refresh-on-resume preference is persisted', (tester) async {
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(MaterialApp(home: SettingsScreen(
+      authRepo: auth, catalogRepo: catalog, libraryRepo: library)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Catálogo IPTV'));
+    await tester.pumpAndSettle();
+    final toggle = find.widgetWithText(SwitchListTile, 'Atualizar ao voltar para o app');
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(storage.getString('catalog_refresh_on_resume'), 'true');
+  });
+
+  testWidgets('compact poster preference persists across settings sessions', (tester) async {
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+    Future<void> showSettings() async {
+      await tester.pumpWidget(MaterialApp(home: SettingsScreen(
+        authRepo: auth, catalogRepo: catalog, libraryRepo: library)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aparência'));
+      await tester.pumpAndSettle();
+    }
+    await showSettings();
+    final toggle = find.widgetWithText(SwitchListTile, 'Grade compacta');
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(storage.getString('catalog_compact_posters'), 'true');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await showSettings();
+    expect(tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Grade compacta')).value, isTrue);
+  });
+
+  testWidgets('automatic next episode preference persists after reopening settings', (tester) async {
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+
+    Future<void> openSettings() async {
+      await tester.pumpWidget(MaterialApp(home: SettingsScreen(
+        authRepo: auth, catalogRepo: catalog, libraryRepo: library)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reprodução e player'));
+      await tester.pumpAndSettle();
+    }
+
+    await openSettings();
+    final toggle = find.widgetWithText(SwitchListTile, 'Próximo episódio automático');
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(storage.getString('player_auto_next_episode'), 'false');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await openSettings();
+    expect(tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Próximo episódio automático')).value, isFalse);
   });
 
   testWidgets('M3U series with a direct URL offers playback without Xtream', (tester) async {
@@ -57,16 +130,44 @@ void main() {
     expect(find.text('Nenhum episódio encontrado'), findsNothing);
   });
 
+  testWidgets('settings lists six modules on a narrow Android viewport', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final catalog = CatalogRepository(auth);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(MaterialApp(home: HomeScreen(
+      authRepo: auth, catalogRepo: catalog)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.text('Reprodução e player'), findsOneWidget);
+    expect(find.text('Catálogo IPTV'), findsOneWidget);
+    expect(find.text('Aparência'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Dados e privacidade'), 100,
+      scrollable: find.byType(Scrollable).last);
+    expect(find.text('Dados e privacidade'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('home reacts to watch history recorded through its shared library', (tester) async {
     final catalog = CatalogRepository(auth);
     addTearDown(catalog.dispose);
     await tester.pumpWidget(MaterialApp(home: HomeScreen(authRepo: auth, catalogRepo: catalog)));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('EPG'));
+    await tester.tap(find.byTooltip('Configurações'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TV ao vivo e EPG'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guia de programação (EPG)'));
     await tester.pumpAndSettle();
     final epg = tester.widget<EpgScreen>(find.byType(EpgScreen));
     final library = epg.libraryRepo;
     Navigator.of(tester.element(find.byType(EpgScreen))).pop();
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.byType(SettingsScreen))).pop();
     await tester.pumpAndSettle();
     await library.addToHistory(const MediaItem(
       id: 'resume-1', title: 'Filme para continuar', streamUrl: 'https://example.test/movie.mp4',

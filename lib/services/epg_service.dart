@@ -147,6 +147,21 @@ class EpgService {
     return {};
   }
 
+  static String decodeShortEpgText(String value) {
+    final text = value.trim();
+    if (text.isEmpty || text.length % 4 != 0) return value;
+    try {
+      final decodedBytes = base64.decode(text);
+      if (base64.encode(decodedBytes) != text) return value;
+      final decoded = utf8.decode(decodedBytes);
+      if (decoded.isEmpty || decoded.runes.any((r) =>
+          r < 32 && r != 9 && r != 10 && r != 13)) return value;
+      return decoded;
+    } on FormatException {
+      return value;
+    }
+  }
+
   Future<List<EpgProgram>> getShortEpg(XtreamConfig config, int streamId) async {
     final cacheKey = streamId.toString();
     if (_epgCache.containsKey(cacheKey) && _epgCache[cacheKey]!.isNotEmpty) {
@@ -163,8 +178,9 @@ class EpgService {
           return EpgProgram(
             id: map['id']?.toString() ?? '',
             channelId: streamId.toString(),
-            title: map['title'] as String? ?? 'Sem Título',
-            description: map['descr'] as String? ?? map['description'] as String?,
+            title: decodeShortEpgText(map['title']?.toString() ?? 'Sem Título'),
+            description: (map['descr'] ?? map['description']) == null ? null
+                : decodeShortEpgText((map['descr'] ?? map['description']).toString()),
             startTime: DateTime.tryParse(map['start'] as String? ?? '') ?? DateTime.now(),
             endTime: DateTime.tryParse(map['end'] as String? ?? '') ?? DateTime.now(),
           );

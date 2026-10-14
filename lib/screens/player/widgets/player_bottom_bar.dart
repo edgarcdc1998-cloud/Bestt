@@ -92,15 +92,15 @@ class PlayerBottomBar extends StatelessWidget {
     final double currentSeconds = position.inSeconds.toDouble().clamp(0.0, maxSeconds);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.0),
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
-              trackHeight: 3.0,
+              trackHeight: 4.0,
               activeTrackColor: Colors.redAccent,
               inactiveTrackColor: Colors.white30,
               thumbColor: Colors.redAccent,
@@ -116,8 +116,11 @@ class PlayerBottomBar extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 4,
               children: [
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -126,7 +129,7 @@ class PlayerBottomBar extends StatelessWidget {
                       _formatDuration(position),
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
-                    const Text(' / ', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    const Text('  /  ', style: TextStyle(color: Colors.white54, fontSize: 12)),
                     Text(
                       _formatDuration(duration),
                       style: const TextStyle(color: Colors.white70, fontSize: 12),
@@ -147,7 +150,7 @@ class PlayerBottomBar extends StatelessWidget {
                         onPressed: onToggleSpeed,
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.white,
-                          backgroundColor: Colors.white12,
+                          backgroundColor: const Color(0xFF26262B),
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           minimumSize: const Size(40, 26),
                         ),

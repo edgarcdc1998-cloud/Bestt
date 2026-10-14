@@ -11,6 +11,7 @@ import 'package:best_player/repositories/authentication_repository.dart';
 import 'package:best_player/repositories/catalog_repository.dart';
 import 'package:best_player/repositories/library_repository.dart';
 import 'package:best_player/screens/home_screen.dart';
+import 'package:best_player/screens/epg_screen.dart';
 import 'package:best_player/screens/series_detail_screen.dart';
 import 'package:best_player/services/app_storage.dart';
 
@@ -25,16 +26,50 @@ class PreviewCatalog extends CatalogRepository {
   ];
   @override
   List<MediaItem> get movies => const [
-    MediaItem(id: 'm1', title: 'Uma viagem além do horizonte', streamUrl: 'https://example.test/movie', type: PlaybackType.movie),
-    MediaItem(id: 'm2', title: 'Noite na cidade', streamUrl: 'https://example.test/movie2', type: PlaybackType.movie),
+    MediaItem(id: 'm1', title: 'Uma viagem além do horizonte', streamUrl: 'https://example.test/movie', type: PlaybackType.movie, categoryName: 'Terror'),
+    MediaItem(id: 'm2', title: 'Noite na cidade', streamUrl: 'https://example.test/movie2', type: PlaybackType.movie, categoryName: 'Drama'),
     MediaItem(id: 'm3', title: 'Entre montanhas', streamUrl: 'https://example.test/movie3', type: PlaybackType.movie),
     MediaItem(id: 'm4', title: 'Memórias de um verão', streamUrl: 'https://example.test/movie4', type: PlaybackType.movie),
   ];
   @override
   List<MediaItem> get series => const [
-    MediaItem(id: 's1', title: 'Histórias do amanhã', streamUrl: '', seriesId: '1', type: PlaybackType.series),
+    MediaItem(id: 's1', title: 'Histórias do amanhã', streamUrl: '', seriesId: '1', type: PlaybackType.series, categoryName: 'Drama'),
     MediaItem(id: 's2', title: 'O último farol', streamUrl: '', seriesId: '2', type: PlaybackType.series),
   ];
+}
+
+class XtreamCategoryPreviewCatalog extends PreviewCatalog {
+  XtreamCategoryPreviewCatalog(super.auth);
+  @override
+  List<Map<String, dynamic>> get vodCategories => const [
+    {'category_id': '10', 'category_name': 'Ação'},
+    {'category_id': '20', 'category_name': 'Drama'},
+  ];
+  @override
+  List<Map<String, dynamic>> get seriesCategories => const [
+    {'category_id': '30', 'category_name': 'Ficção científica'},
+    {'category_id': '40', 'category_name': 'Suspense'},
+  ];
+  @override
+  List<MediaItem> get movies => const [
+    MediaItem(id: 'action', title: 'Filme de ação', streamUrl: 'https://example.test/action', type: PlaybackType.movie, categoryId: '10'),
+    MediaItem(id: 'drama', title: 'Filme dramático', streamUrl: 'https://example.test/drama', type: PlaybackType.movie, categoryId: '20'),
+  ];
+  @override
+  List<MediaItem> get series => const [
+    MediaItem(id: 'scifi', title: 'Série espacial', streamUrl: '', type: PlaybackType.series, categoryId: '30'),
+    MediaItem(id: 'suspense', title: 'Série de mistério', streamUrl: '', type: PlaybackType.series, categoryId: '40'),
+  ];
+}
+
+class EmptyPreviewCatalog extends CatalogRepository {
+  EmptyPreviewCatalog(super.auth);
+  @override
+  List<Channel> get channels => const [];
+  @override
+  List<MediaItem> get movies => const [];
+  @override
+  List<MediaItem> get series => const [];
 }
 
 void main() {
@@ -74,7 +109,7 @@ void main() {
       addTearDown(catalog.dispose);
       await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
       await tester.pumpAndSettle();
-      for (final label in ['Ao vivo', 'Filmes', 'Séries', 'Favoritos']) {
+      for (final label in ['Início', 'Ao vivo', 'Filmes', 'Séries', 'Biblioteca']) {
         await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text(label)));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$label must fit $size');
@@ -83,6 +118,202 @@ void main() {
       await tester.pumpAndSettle();
     });
   }
+
+  testWidgets('empty catalog keeps Home, TV ao vivo and Biblioteca usable', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = EmptyPreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    for (final label in ['Início', 'Ao vivo', 'Biblioteca']) {
+      await tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text(label)));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '$label must show its empty state');
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('search filters live channels and restores the full list', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Ao vivo')));
+    await tester.pumpAndSettle();
+    final search = find.widgetWithText(TextField, 'Buscar canais');
+    await tester.enterText(search, 'Esportes');
+    await tester.pumpAndSettle();
+    expect(find.text('Esportes em destaque'), findsOneWidget);
+    expect(find.text('Notícias ao vivo'), findsNothing);
+    await tester.enterText(search, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Notícias ao vivo'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('movie search filters titles and clearing restores catalog', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Filmes')));
+    await tester.pumpAndSettle();
+    final search = find.widgetWithText(TextField, 'Buscar filmes');
+    await tester.enterText(search, 'montanhas');
+    await tester.pumpAndSettle();
+    expect(find.text('Entre montanhas'), findsOneWidget);
+    expect(find.text('Noite na cidade'), findsNothing);
+    await tester.enterText(search, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Noite na cidade'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('EPG keeps selected channel readable in portrait', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    addTearDown(auth.dispose);
+    const channels = [
+      Channel(id: 'news', name: 'Notícias ao vivo', streamUrl: 'https://example.test/news'),
+      Channel(id: 'sport', name: 'Esportes em destaque', streamUrl: 'https://example.test/sport'),
+    ];
+    await tester.pumpWidget(MaterialApp(home: EpgScreen(
+      channels: channels, authRepo: auth, libraryRepo: library)));
+    await tester.pumpAndSettle();
+    expect(find.text('Notícias ao vivo'), findsWidgets);
+    expect(find.text('Assistir'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Esportes em destaque').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Assistir'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('EPG channel search filters channels and clears', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final library = LibraryRepository(storage);
+    await library.init();
+    addTearDown(library.dispose);
+    addTearDown(auth.dispose);
+    const channels = [
+      Channel(id: 'c1', name: 'Notícias ao vivo', streamUrl: 'https://example.test/c1'),
+      Channel(id: 'c2', name: 'Esportes em destaque', streamUrl: 'https://example.test/c2'),
+    ];
+    await tester.pumpWidget(MaterialApp(home: EpgScreen(
+      channels: channels, authRepo: auth, libraryRepo: library)));
+    await tester.pumpAndSettle();
+    final search = find.widgetWithText(TextField, 'Buscar canais no guia');
+    await tester.enterText(search, 'Esportes');
+    await tester.pumpAndSettle();
+    expect(find.text('Esportes em destaque'), findsOneWidget);
+    expect(find.text('Notícias ao vivo'), findsOneWidget); // Selected header remains.
+    await tester.enterText(search, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Esportes em destaque'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('category chips filter movies without replacing search', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Filmes')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Terror'));
+    await tester.pumpAndSettle();
+    expect(find.text('Uma viagem além do horizonte'), findsOneWidget);
+    expect(find.text('Noite na cidade'), findsNothing);
+    await tester.tap(find.text('Todos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Noite na cidade'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Xtream category IDs filter movies and series when names are absent', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = XtreamCategoryPreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Filmes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ação'), findsOneWidget);
+    await tester.tap(find.text('Drama'));
+    await tester.pumpAndSettle();
+    expect(find.text('Filme dramático'), findsOneWidget);
+    expect(find.text('Filme de ação'), findsNothing);
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text('Séries')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ficção científica'), findsOneWidget);
+    await tester.tap(find.text('Suspense'));
+    await tester.pumpAndSettle();
+    expect(find.text('Série de mistério'), findsOneWidget);
+    expect(find.text('Série espacial'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home hero offers real featured title and action', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await AppStorage.getInstance();
+    final auth = AuthenticationRepository(storage);
+    await auth.loginM3u('https://example.test/playlist');
+    final catalog = PreviewCatalog(auth);
+    addTearDown(auth.dispose);
+    addTearDown(catalog.dispose);
+    await tester.pumpWidget(BestPlayerApp(authRepo: auth, catalogRepo: catalog));
+    await tester.pumpAndSettle();
+    expect(find.text('Uma viagem além do horizonte'), findsWidgets);
+    expect(find.text('Assistir'), findsOneWidget);
+    expect(find.text('Filmes em destaque'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   // Opt-in visual exports, run with --update-goldens. These are review
   // screenshots, not baselines used to claim regression coverage.
@@ -118,7 +349,7 @@ void main() {
       await tester.pumpWidget(RepaintBoundary(key: previewKey,
         child: BestPlayerApp(authRepo: auth, catalogRepo: catalog)));
       await tester.pumpAndSettle();
-      final tabs = {'Ao vivo': 'live', 'Filmes': 'movies', 'Séries': 'series', 'Favoritos': 'favorites'};
+      final tabs = {'Início': 'home', 'Ao vivo': 'live', 'Filmes': 'movies', 'Séries': 'series', 'Biblioteca': 'favorites'};
       for (final entry in tabs.entries) {
         await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text(entry.key)));
         await tester.pumpAndSettle();

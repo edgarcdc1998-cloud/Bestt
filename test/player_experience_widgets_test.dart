@@ -4,11 +4,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:best_player/models/media_item.dart';
 import 'package:best_player/models/playback_type.dart';
 import 'package:best_player/screens/player/widgets/player_sleep_timer_dialog.dart';
+import 'package:best_player/screens/player/widgets/player_bottom_bar.dart';
 import 'package:best_player/screens/player/widgets/player_quick_channel_drawer.dart';
 import 'package:best_player/screens/player/widgets/player_gesture_detector.dart';
 
 void main() {
   group('PlayerExperienceWidgets Tests', () {
+  testWidgets('player controls fit compact landscape with large text', (tester) async {
+    tester.view.physicalSize = const Size(568, 320);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.6;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    const media = MediaItem(id: 'vod', title: 'Filme',
+      streamUrl: 'https://example.test/movie', type: PlaybackType.movie);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: PlayerBottomBar(
+      media: media,
+      position: const Duration(minutes: 12),
+      duration: const Duration(hours: 2),
+      onSeek: (_) {},
+      onPrevious: () {},
+      onNext: () {},
+      onToggleSpeed: () {},
+    ))));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+
     testWidgets('PlayerSleepTimerDialog displays options and triggers callback', (tester) async {
       int? selectedMinutes = -1;
 
