@@ -202,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _channelTile(Channel channel, List<Channel> playlist, {bool favorite = false}) =>
     Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: Material(
-      color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12),
+      color: const Color(0xFF1C1C20), borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
