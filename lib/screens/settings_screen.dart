@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _refreshing = false;
   bool _autoNext = true;
   bool _refreshOnResume = false;
+  bool _compactPosters = false;
 
   @override
   void initState() {
@@ -36,6 +37,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _autoNext = storage.getString('player_auto_next_episode') != 'false');
     if (mounted) setState(() =>
       _refreshOnResume = storage.getString('catalog_refresh_on_resume') == 'true');
+    if (mounted) setState(() =>
+      _compactPosters = storage.getString('catalog_compact_posters') == 'true');
   }
 
   Future<void> _setAutoNext(bool enabled) async {
@@ -48,6 +51,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final storage = await AppStorage.getInstance();
     await storage.setString('catalog_refresh_on_resume', enabled.toString());
     if (mounted) setState(() => _refreshOnResume = enabled);
+  }
+
+  Future<void> _setCompactPosters(bool enabled) async {
+    final storage = await AppStorage.getInstance();
+    await storage.setString('catalog_compact_posters', enabled.toString());
+    if (mounted) setState(() => _compactPosters = enabled);
   }
 
   void _message(String text) {
@@ -173,7 +182,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           _info('Tema atual', 'Escuro, com detalhes vermelhos', Icons.dark_mode_outlined),
-          _info('Organização', 'Capas em grade e filtros por categoria', Icons.grid_view),
+          SwitchListTile(
+            secondary: const Icon(Icons.grid_view),
+            title: const Text('Grade compacta'),
+            subtitle: const Text('Exibir mais capas por linha em Filmes e Séries'),
+            value: _compactPosters,
+            onChanged: _setCompactPosters,
+            activeColor: Colors.redAccent,
+          ),
         ],
       )),
       _section(ExpansionTile(
@@ -201,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: TextStyle(color: Colors.white60, fontSize: 12)),
         children: [
           _info('Transmitir', 'A busca por dispositivos Chromecast está disponível dentro do player', Icons.cast_connected),
-          _info('Best Roku', 'Use o receptor configurado; a conexão é gerenciada pelo app', Icons.tv),
+          _info('Best Roku', 'Use o receptor Best Roku para receber a transmissão quando configurado', Icons.tv),
         ],
       )),
       _section(ExpansionTile(
