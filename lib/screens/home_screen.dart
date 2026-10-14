@@ -515,7 +515,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BEST PLAYER', style: TextStyle(fontSize: 18,
+        title: const Text.rich(TextSpan(children: [
+          TextSpan(text: 'BEST', style: TextStyle(color: Colors.redAccent)),
+          TextSpan(text: ' PLAYER', style: TextStyle(color: Colors.white)),
+        ]), style: TextStyle(fontSize: 18,
           fontWeight: FontWeight.w800, letterSpacing: 1.1)),
         actions: [
           IconButton(
