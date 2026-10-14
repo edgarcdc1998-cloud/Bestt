@@ -110,14 +110,15 @@ class MediaCatalogGrid extends StatelessWidget {
   final List<MediaItem> items;
   final ValueChanged<MediaItem> onTap;
   final String storageKey;
+  final bool compact;
 
   const MediaCatalogGrid({super.key, required this.items, required this.onTap,
-    required this.storageKey});
+    required this.storageKey, this.compact = false});
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
     final width = constraints.maxWidth - 32;
-    final columns = (width / 164).floor().clamp(2, 6);
+    final columns = (width / (compact ? 125 : 164)).floor().clamp(2, 6);
     final cardWidth = (width - (columns - 1) * 12) / columns;
     final titleHeight = MediaQuery.textScalerOf(context).scale(13) * 2.7 + 14;
     return GridView.builder(
