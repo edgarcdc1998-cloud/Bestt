@@ -138,11 +138,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _heading(String title, String subtitle) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800,
-        letterSpacing: -0.5)),
-      const SizedBox(height: 4),
-      Text(subtitle, style: const TextStyle(color: Colors.white60, height: 1.4)),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+      Container(width: 4, height: 38,
+        decoration: BoxDecoration(color: Colors.redAccent,
+          borderRadius: BorderRadius.circular(3))),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800,
+          letterSpacing: -0.5)),
+        const SizedBox(height: 4),
+        Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white60, height: 1.4)),
+      ])),
     ]),
   );
 
@@ -246,6 +253,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 18, 10, 10),
         child: Row(children: [
+          Container(width: 3, height: 19, color: Colors.redAccent),
+          const SizedBox(width: 9),
           Expanded(child: Text(title, maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
